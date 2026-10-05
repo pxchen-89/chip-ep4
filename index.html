@@ -169,10 +169,8 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 @keyframes wave{0%,100%{transform:rotate(0)}25%{transform:rotate(-18deg)}75%{transform:rotate(18deg)}}
 .hand{transform-box:fill-box;transform-origin:50% 90%}
 .hand.go{animation:wave .5s ease-in-out 2}
-@keyframes flick{0%,100%{opacity:0}20%,60%{opacity:.9}40%{opacity:.1}}
 .glow{opacity:0;transition:opacity .5s}
 .glow.on{opacity:1}
-.glow.flick{animation:flick 1s ease-in-out 1}
 
 /* 結局 */
 .badge{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center;border:2px solid var(--navy);border-radius:18px;padding:16px 18px;margin-top:16px;background:linear-gradient(135deg,var(--navy-soft),var(--panel))}
@@ -208,7 +206,7 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 .zap{transform-box:fill-box;transform-origin:center;animation:zap .55s ease-out forwards}
 @keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
 .pop{animation:pop .35s ease-out}
-@media (prefers-reduced-motion: reduce){.pulse,.zap,.pop,.hand.go,.glow.flick{animation:none}.toast,.glow,.opt{transition:none}}
+@media (prefers-reduced-motion: reduce){.pulse,.zap,.pop,.hand.go{animation:none}.toast,.glow,.opt{transition:none}}
 </style>
 </head>
 <body>
@@ -397,7 +395,7 @@ const ITEMS = [
   {id:'q4a', name:'晶片工廠 · 打賭猜層數', learn:'每兩條都交叉的三條導線，要放在三個不同的層。', pts:10},
   {id:'q4b', name:'晶片工廠 · 接好三條交叉導線', learn:'需要時就往上多蓋一層。', pts:10},
   {id:'q5', name:'晶片展示間 · 為什麼有十幾層', learn:'電晶體越多、晶片越小，導線就要蓋越多層。', pts:15},
-  {id:'q6', name:'晶片研究室 · 組裝阿寶的晶片', learn:'最下面是做好電晶體的矽晶圓，上面一層不導電材料、一層導線，一層一層往上蓋。', pts:15},
+  {id:'q6', name:'晶片研究室 · 組裝阿寶的晶片', learn:'最下面是做好電晶體的矽晶圓，上面一層一層蓋導線，交錯的兩層導線之間用不導電材料隔開。', pts:15},
 ];
 
 const STOPS = ['訓練場','1958 基爾比','1959 走廊','諾伊斯辦公室','晶片工廠','晶片展示間','晶片研究室'];
@@ -463,7 +461,6 @@ function renderStart(){
         <div class="err" id="fErr"></div>
         <div class="actions" style="margin-top:4px"><button class="btn big" type="submit">穿越時空，出發！</button></div>
       </form>
-      <p class="small" style="margin-top:16px">老師：<a href="${ON_SITE ? '?view=teacher' : '#teacher'}" style="color:var(--navy)">產生班級 QR code</a></p>
     </div></div>`);
   $('startForm').addEventListener('submit', e => {
     e.preventDefault();
@@ -547,12 +544,12 @@ function renderScene(id){
 /* ---------- 組裝晶片＋驗證槽 ---------- */
 let stack = [];
 function scoreStack(seq){
+  // 依課程簡報第 28、30、34 頁：電晶體做在最下面的矽晶圓上，導線往上蓋，交錯的兩層導線之間用不導電材料隔開。
+  // 第 1 層導線底下多鋪一層不導電材料（第 27 頁：蓋在電晶體上保護它）也算對。
   const ids = seq.map(c => c.startsWith('ox') ? 'ox' : c);
-  const exact = ['si','ox','m1','ox','m2'];
-  if (ids.length === 5 && ids.every((v,i) => v === exact[i])) return 15;
   const iM1 = ids.indexOf('m1'), iM2 = ids.indexOf('m2');
-  const core = ids[0] === 'si' && !ids.includes('shell') && iM1 > 0 && iM2 > iM1 && ids.slice(iM1+1, iM2).includes('ox');
-  return core ? 10 : 0;
+  const ok = ids[0] === 'si' && !ids.includes('shell') && iM1 > 0 && iM2 > iM1 && ids.slice(iM1+1, iM2).includes('ox');
+  return ok ? 15 : 0;
 }
 function stackHint(seq){
   const ids = seq.map(c => c.startsWith('ox') ? 'ox' : c);
@@ -561,8 +558,7 @@ function stackHint(seq){
   if (!ids.includes('m1') || !ids.includes('m2')) return '兩層導線都要用上喔，阿寶的晶片需要兩層導線。';
   const iM1 = ids.indexOf('m1'), iM2 = ids.indexOf('m2');
   if (iM2 < iM1) return '第 1 層導線應該在第 2 層導線的下面。';
-  if (!ids.slice(iM1+1, iM2).includes('ox')) return '兩層導線直接疊在一起，會碰在一起短路！中間要放什麼？';
-  return '差一點點！真實晶片在電晶體和第 1 層導線之間，也要先鋪一層不導電材料，導線才不會直接碰到電晶體。';
+  return '兩層導線直接疊在一起，會碰在一起短路！中間要放什麼？';
 }
 function lightSVG(){
   return `<svg viewBox="0 0 300 200" role="img" aria-label="感應夜燈驗證槽">
@@ -616,10 +612,9 @@ function openVerify(draw){
         $('vReact').innerHTML = talk('bot_happy', '燈亮了！驗證通過！晶片機台啟動了，阿寶有救了！', 'ok', true) + `<div class="actions"><button class="btn big" type="button" id="vNext">領取工程師證</button></div>`;
         $('vNext').onclick = next; $('vNext').focus();
       } else {
-        if (pts === 10) glow.classList.add('flick');
         sfx('hmm');
         const fails = extra.tries.q6;
-        $('vReact').innerHTML = talk('bot', (pts === 10 ? '燈閃了一下又暗掉了……' : '燈沒有亮……') + stackHint(stack), 'hmm', true)
+        $('vReact').innerHTML = talk('bot', '燈沒有亮……' + stackHint(stack), 'hmm', true)
           + `<div class="actions"><button class="btn" type="button" id="vBack">回去重新疊</button>${fails >= 2 ? '<button class="btn ghost" type="button" id="vShow">請晶片小八示範</button>' : ''}</div>`;
         $('vBack').onclick = () => { closeOverlay(); };
         const vs = $('vShow'); if (vs) vs.onclick = () => { stack = ['si','ox1','m1','ox2','m2']; closeOverlay(); draw(); };
