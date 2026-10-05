@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 /* Layout：時空任務。上方是時空地圖與背包；中間是角色對話場景或接導線關卡（左格子、右任務），窄螢幕上下疊放。 */
 :root{
@@ -187,10 +186,6 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 .send{margin-top:14px;border-radius:12px;padding:10px 14px;font-size:15px;background:var(--navy-soft)}
 .send.ok{background:var(--ok-soft)} .send.bad{background:var(--warm-soft)}
 
-/* 老師頁 */
-.qr{display:flex;justify-content:center;padding:18px;background:#fff;border-radius:16px;margin-top:14px}
-.qr img,.qr canvas{width:min(340px,100%)!important;height:auto!important}
-.url{font-family:var(--f-mono);font-size:14px;word-break:break-all;background:var(--bg);border-radius:10px;padding:10px 12px;margin-top:10px;user-select:all}
 
 .overlay{position:fixed;inset:0;background:rgba(10,14,36,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
 .dialog{background:var(--panel);color:var(--ink);border-radius:22px;max-width:760px;width:100%;max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)}
@@ -264,8 +259,6 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 <script>
 (() => {
 const VERSION = 'v3-story';
-// 放在一般網站（例如 GitHub Pages）時，老師頁面才能用網站網址產生 QR code
-const ON_SITE = /^https?:$/.test(location.protocol) && !/claude/.test(location.hostname);
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store = {
@@ -441,7 +434,6 @@ function renderStep(){
 function renderStart(){
   P = null; bonusMode = false; renderMap();
   const saved = store.get(PKEY, null);
-  const fixedCls = (params.class || '').slice(0,40);
   let resume = '';
   if (saved && saved.P && saved.P.step > 0 && STEPS[saved.P.step] && STEPS[saved.P.step].t !== 'result')
     resume = `<div class="react">${talk('bot', `咦？${esc(saved.P.name)}，你上次走到「${STOPS[STEPS[saved.P.step].s] || '終點'}」就斷線了。要接著走嗎？`, 'hmm', true)}
@@ -454,7 +446,7 @@ function renderStart(){
       <form id="startForm" novalidate>
         <p class="ask">先登記你的工程師資料：</p>
         <div class="fields">
-          <div class="field"><label for="fCls">班級（選填）</label><input id="fCls" autocomplete="off" value="${esc(fixedCls)}" ${fixedCls ? 'readonly' : ''} placeholder="六年三班"></div>
+          <div class="field"><label for="fCls">班級（選填）</label><input id="fCls" autocomplete="off" placeholder="六年三班"></div>
           <div class="field"><label for="fSeat">座號（選填）</label><input id="fSeat" inputmode="numeric" autocomplete="off" placeholder="12"></div>
           <div class="field"><label for="fName">姓名</label><input id="fName" autocomplete="off" placeholder="你的名字"></div>
         </div>
@@ -917,63 +909,8 @@ $('undo').onclick = () => {
 };
 $('reset').onclick = () => { if (S && !S.finished) startLevel(S.key); };
 
-/* ================= 老師頁 ================= */
-function renderTeacher(){
-  P = null; renderMap();
-  const base = ON_SITE ? location.origin + location.pathname : '';
-  showCard(`<div class="scene"><div class="place">老師頁面</div><div class="sceneBody">
-    <p class="ask" style="margin-top:0">產生學生用的 QR code</p>
-    <p>學生用平板掃描就能開始玩，不用登入、不用安裝。輸入班級名稱的話，學生開啟後班級會自動填好；不填也可以。</p>
-    <p class="small">學生的結果只顯示在自己的平板上，不會記錄也不會上傳。</p>
-    <div class="field"><label for="tCls">班級名稱（選填）</label><input id="tCls" autocomplete="off" placeholder="例如：文化國中 七年一班"></div>
-    <div id="qrArea"></div>
-    <div class="actions"><a class="btn ghost" href="${ON_SITE ? location.pathname : '#'}">回到學生畫面</a></div></div></div>`);
-  const area = $('qrArea');
-  if (!base){ area.innerHTML = `<p class="small" style="margin-top:12px">這是預覽版。放到網站上以後，這裡才會產生學生用的 QR code。</p>`; return; }
-  const draw = () => {
-    const cls = $('tCls').value.trim();
-    const url = base + (cls ? '?class=' + encodeURIComponent(cls) : '');
-    area.innerHTML = `<div class="qr" id="qrBox"></div><div class="url">${esc(url)}</div>
-      <div class="actions"><button class="btn" type="button" id="dlQr">下載 QR code 圖片</button><button class="btn ghost" type="button" id="copyUrl">複製連結</button></div>`;
-    if (window.QRCode) new QRCode($('qrBox'), { text:url, width:340, height:340, correctLevel: QRCode.CorrectLevel.M });
-    else $('qrBox').textContent = 'QR code 套件沒有載入，請直接分享上面的連結。';
-    $('copyUrl').onclick = () => {
-      if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => { $('copyUrl').textContent = '已複製'; }, () => { $('copyUrl').textContent = '請手動選取上面的連結'; });
-    };
-    $('dlQr').onclick = () => {
-      const qc = $('qrBox').querySelector('canvas'); if (!qc) return;
-      const c = document.createElement('canvas'); c.width = 480; c.height = 600;
-      const g = c.getContext('2d');
-      g.fillStyle = '#ffffff'; g.fillRect(0, 0, 480, 600);
-      g.fillStyle = '#1b2142'; g.textAlign = 'center';
-      g.font = '900 34px "Chiron GoRound TC","Noto Sans TC",sans-serif'; g.fillText('導線走線大師', 240, 62);
-      g.font = '500 18px "Noto Sans TC",sans-serif'; g.fillText('晶片系列 EP4 · 時空任務', 240, 94);
-      g.drawImage(qc, 70, 120, 340, 340);
-      g.font = '700 24px "Noto Sans TC",sans-serif'; g.fillText(cls || '用平板掃描開始玩', 240, 510);
-      g.font = '400 15px "Noto Sans TC",sans-serif'; g.fillStyle = '#5a6286'; g.fillText('LIS 情境科學教材', 240, 556);
-      const a = document.createElement('a');
-      a.href = c.toDataURL('image/png');
-      a.download = 'QRcode_導線走線大師' + (cls ? '_' + cls.replace(/[\\/:*?"<>|\s]+/g, '') : '') + '.png';
-      document.body.appendChild(a); a.click(); a.remove();
-    };
-  };
-  let t; $('tCls').addEventListener('input', () => { clearTimeout(t); t = setTimeout(draw, 300); });
-  draw();
-}
-
 /* ================= 啟動 ================= */
-function readParams(){
-  const q = {};
-  try { new URLSearchParams(location.search).forEach((v, k) => { q[k] = v; }); } catch(e){}
-  if (location.hash === '#teacher') q.view = 'teacher';
-  return q;
-}
-function boot(){
-  params = readParams();
-  if (params.view === 'teacher') renderTeacher(); else renderStart();
-}
-boot();
-window.addEventListener('hashchange', boot);
+renderStart();
 })();
 </script>
 
