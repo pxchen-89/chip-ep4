@@ -323,6 +323,10 @@ async function firebaseBackend(){
     playersWatch(pin, cb){ return F.onSnapshot(F.collection(db, 'rooms', pin, 'players'), qs => cb(qs.docs.map(d => Object.assign({ id:d.id }, d.data()))), e => cb(undefined, e)); },
     playerDelete(pin, uid){ return F.deleteDoc(playerRef(pin, uid)); },
     roomDelete(pin){ return F.deleteDoc(roomRef(pin)); },
+    // 每位學生每一題第一次的作答（只有開房老師讀得到）
+    answerSet(pin, uid, data){ return F.setDoc(F.doc(db, 'rooms', pin, 'answers', uid), data); },
+    answersWatch(pin, cb){ return F.onSnapshot(F.collection(db, 'rooms', pin, 'answers'), qs => cb(qs.docs.map(d => Object.assign({ id:d.id }, d.data()))), e => cb(undefined, e)); },
+    answerDelete(pin, uid){ return F.deleteDoc(F.doc(db, 'rooms', pin, 'answers', uid)); },
   };
 }
 
@@ -354,6 +358,9 @@ async function mockBackend(){
     playersWatch(pin, cb){ let last; return watch(() => { const r = load().rooms[pin]; const list = r ? Object.entries(r.players).map(([id, v]) => Object.assign({ id }, v)) : []; const j = JSON.stringify(list); if (j !== last){ last = j; cb(list); } }); },
     async playerDelete(pin, uid){ write(d => { delete d.rooms[pin].players[uid]; }); },
     async roomDelete(pin){ write(d => { delete d.rooms[pin]; }); },
+    async answerSet(pin, uid, data){ write(d => { const r = d.rooms[pin]; r.answers = r.answers || {}; r.answers[uid] = data; }); },
+    answersWatch(pin, cb){ let last; return watch(() => { const r = load().rooms[pin]; const list = r && r.answers ? Object.entries(r.answers).map(([id, v]) => Object.assign({ id }, v)) : []; const j = JSON.stringify(list); if (j !== last){ last = j; cb(list); } }); },
+    async answerDelete(pin, uid){ write(d => { const r = d.rooms[pin]; if (r && r.answers) delete r.answers[uid]; }); },
   };
 }
 
@@ -590,7 +597,7 @@ function renderStart(roomArg){
       await be.playerSet(pin, uid, { name:name.slice(0,20), cls:cls.slice(0,40), score:0, step:0, stop:0, parts:0, firstOk:0, done:false, joinedAt:Date.now(), updatedAt:Date.now() });
       sfx('gain');
       P = { cls:cls.slice(0,40), seat, name:name.slice(0,20), step:0, t0:Date.now(), room:pin, uid };
-      fresh(); store.set(PKEY, {P, A, extra}); liveLast = '';
+      fresh(); store.set(PKEY, {P, A, extra}); liveLast = ''; liveLastQ = '';
       liveAttach();
       if (r.status === 'lobby') waitForStart(); else go(0);
     } catch(err){
@@ -602,7 +609,7 @@ function renderStart(roomArg){
   if (r){
     r.onclick = async () => {
       P = saved.P; A = saved.A || {}; extra = saved.extra || {sparksWall:0, skipped:[], parts:[], tries:{}};
-      if (P.room && LIVE_ENABLED){ liveLast = ''; liveAttach(); }
+      if (P.room && LIVE_ENABLED){ liveLast = ''; liveLastQ = ''; liveAttach(); }
       renderStep(); liveReport();
     };
     $('discard').onclick = () => { store.del(PKEY); renderStart(room); };
@@ -610,12 +617,17 @@ function renderStart(roomArg){
 }
 
 /* ---------- 即時房間（學生端） ---------- */
-let liveT = null, liveLast = '', liveOffs = [], liveClosed = false;   // liveClosed：老師已結束或刪除這一場，停止回報
+let liveT = null, liveLast = '', liveLastQ = '', liveOffs = [], liveClosed = false;   // liveClosed：老師已結束或刪除這一場，停止回報
 function liveScore(){
   const st = STEPS[P.step];
   const firstOk = ITEMS.filter(it => A[it.id] && A[it.id].pts === it.pts).length;
   const passed = Math.min(P.step, STEPS.length - 1);
   return { score: passed * 100 + firstOk * 100, firstOk, step:P.step, stop: st ? st.s : 7, parts:(extra.parts || []).length, done: !!st && st.t === 'result' };
+}
+function liveAnswers(){
+  const q = {};
+  ITEMS.forEach(it => { const a = A[it.id]; if (a) q[it.id] = { ok: a.pts === it.pts, a: String(a.ans).slice(0, 80) }; });
+  return q;
 }
 function liveReport(){
   if (!P || !P.room || !P.uid || bonusMode || !LIVE_ENABLED || liveClosed) return;
@@ -623,11 +635,19 @@ function liveReport(){
   liveT = setTimeout(async () => {
     if (!P || !P.room) return;
     const s = liveScore(), j = JSON.stringify(s);
-    if (j === liveLast) return;
-    liveLast = j;
-    if (s.done && !P.finishedAt){ P.finishedAt = Date.now(); }
-    const data = Object.assign({ name:P.name, cls:P.cls || '', updatedAt:Date.now() }, s, P.finishedAt ? { finishedAt:P.finishedAt } : {});
-    try { await (await liveBackend()).playerSet(P.room, P.uid, data); } catch(e){ liveLast = ''; }
+    const q = liveAnswers(), qj = JSON.stringify(q);
+    const be = await liveBackend();
+    if (j !== liveLast){
+      liveLast = j;
+      if (s.done && !P.finishedAt){ P.finishedAt = Date.now(); }
+      const data = Object.assign({ name:P.name, cls:P.cls || '', updatedAt:Date.now() }, s, P.finishedAt ? { finishedAt:P.finishedAt } : {});
+      try { await be.playerSet(P.room, P.uid, data); } catch(e){ liveLast = ''; }
+    }
+    // 作答紀錄另外存，就算寫入失敗也不影響排行榜
+    if (qj !== liveLastQ && Object.keys(q).length){
+      liveLastQ = qj;
+      try { await be.answerSet(P.room, P.uid, { name:P.name, q, updatedAt:Date.now() }); } catch(e){ liveLastQ = ''; }
+    }
   }, 250);
 }
 function liveAttach(){
@@ -865,17 +885,8 @@ function renderResult(){
       <button class="btn ghost" type="button" data-bonus="k33big">彩蛋：三井三屋</button>
       <button class="btn ghost" type="button" data-bonus="k33small">彩蛋：再縮小一點</button>
     </div>
-    <div class="actions" style="margin-top:22px;border-top:1px solid var(--line);padding-top:16px">
-      <button class="btn" type="button" id="nextKid">換下一位同學玩</button>
-    </div>
   </div></div>`);
   document.querySelectorAll('[data-bonus]').forEach(b => b.onclick = () => { bonusMode = true; startLevel(b.dataset.bonus); });
-  $('nextKid').onclick = async () => {
-    const room = P && P.room;
-    store.del(PKEY);
-    if (room){ liveOffs.forEach(f => f()); liveOffs = []; try { await (await liveBackend()).newIdentity(); } catch(e){} }
-    renderStart(room); window.scrollTo(0,0);
-  };
   store.del(PKEY);
 }
 

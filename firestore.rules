@@ -32,6 +32,19 @@ service cloud.firestore {
           && (request.auth.uid == uid
               || get(/databases/$(database)/documents/rooms/$(pin)).data.host == request.auth.uid);
       }
+
+      // 每位學生每一題第一次的作答：學生只能寫自己的；只有開房的老師讀得到
+      match /answers/{uid} {
+        allow read: if request.auth != null
+          && get(/databases/$(database)/documents/rooms/$(pin)).data.host == request.auth.uid;
+        allow create, update: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['name', 'q', 'updatedAt'])
+          && request.resource.data.name is string && request.resource.data.name.size() <= 20
+          && request.resource.data.q is map && request.resource.data.q.size() <= 10;
+        allow delete: if request.auth != null
+          && (request.auth.uid == uid
+              || get(/databases/$(database)/documents/rooms/$(pin)).data.host == request.auth.uid);
+      }
     }
   }
 }

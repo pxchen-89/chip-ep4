@@ -116,6 +116,20 @@ body{margin:0;background:radial-gradient(1200px 700px at 80% -10%,var(--bg2),var
 .rest{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:18px}
 .rest span{background:var(--panel);border-radius:12px;padding:6px 14px;font-size:17px}
 .rest span b{font-family:var(--f-mono);color:var(--muted);margin-right:8px}
+.statCard{background:var(--panel);border:2px solid var(--line);border-radius:22px;padding:22px 26px;width:min(1100px,100%);max-height:calc(100vh - 32px);overflow:auto}
+.statHead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px 24px}
+.statHead h2{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,2.6vw,34px);letter-spacing:.04em}
+.statHead p{margin:6px 0 0;color:var(--muted);font-size:16px;max-width:52ch}
+.statTable{width:100%;border-collapse:collapse;margin-top:16px;font-size:clamp(16px,1.5vw,20px)}
+.statTable th{font-size:14px;color:var(--muted);font-weight:500;text-align:left;padding:8px 10px;border-bottom:2px solid var(--line)}
+.statTable td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.statTable td small{display:block;color:var(--muted);font-size:13px}
+.statTable .num{text-align:right;white-space:nowrap;font-family:var(--f-mono)}
+.statTable .num b{font-size:1.4em;color:var(--accent)}
+.pbar{display:inline-block;width:140px;height:12px;border-radius:6px;background:var(--bg);vertical-align:middle;overflow:hidden;margin-right:8px}
+.pbar i{display:block;height:100%;background:var(--ok);border-radius:6px}
+.pct{font-family:var(--f-mono);font-size:15px;color:var(--muted)}
+.statTable .wrong{color:var(--muted);font-size:15px}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:5}
 
 .overlay{position:fixed;inset:0;background:rgba(5,8,30,.72);display:flex;align-items:center;justify-content:center;z-index:10;padding:16px}
@@ -176,6 +190,10 @@ async function firebaseBackend(){
     playersWatch(pin, cb){ return F.onSnapshot(F.collection(db, 'rooms', pin, 'players'), qs => cb(qs.docs.map(d => Object.assign({ id:d.id }, d.data()))), e => cb(undefined, e)); },
     playerDelete(pin, uid){ return F.deleteDoc(playerRef(pin, uid)); },
     roomDelete(pin){ return F.deleteDoc(roomRef(pin)); },
+    // 每位學生每一題第一次的作答（只有開房老師讀得到）
+    answerSet(pin, uid, data){ return F.setDoc(F.doc(db, 'rooms', pin, 'answers', uid), data); },
+    answersWatch(pin, cb){ return F.onSnapshot(F.collection(db, 'rooms', pin, 'answers'), qs => cb(qs.docs.map(d => Object.assign({ id:d.id }, d.data()))), e => cb(undefined, e)); },
+    answerDelete(pin, uid){ return F.deleteDoc(F.doc(db, 'rooms', pin, 'answers', uid)); },
   };
 }
 
@@ -207,6 +225,9 @@ async function mockBackend(){
     playersWatch(pin, cb){ let last; return watch(() => { const r = load().rooms[pin]; const list = r ? Object.entries(r.players).map(([id, v]) => Object.assign({ id }, v)) : []; const j = JSON.stringify(list); if (j !== last){ last = j; cb(list); } }); },
     async playerDelete(pin, uid){ write(d => { delete d.rooms[pin].players[uid]; }); },
     async roomDelete(pin){ write(d => { delete d.rooms[pin]; }); },
+    async answerSet(pin, uid, data){ write(d => { const r = d.rooms[pin]; r.answers = r.answers || {}; r.answers[uid] = data; }); },
+    answersWatch(pin, cb){ let last; return watch(() => { const r = load().rooms[pin]; const list = r && r.answers ? Object.entries(r.answers).map(([id, v]) => Object.assign({ id }, v)) : []; const j = JSON.stringify(list); if (j !== last){ last = j; cb(list); } }); },
+    async answerDelete(pin, uid){ write(d => { const r = d.rooms[pin]; if (r && r.answers) delete r.answers[uid]; }); },
   };
 }
 
@@ -221,12 +242,22 @@ const BOT = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYF
 const STOPS = ['訓練場','1958 基爾比','1959 走廊','諾伊斯辦公室','晶片工廠','晶片展示間','晶片研究室'];
 const PART_COLORS = ['var(--si)','var(--m1)','var(--oxide)','var(--m2)','var(--oxide)'];
 const HKEY = 'wm-host-room';
+const QMETA = [
+  { id:'q1',  short:'Q1',     label:'第 1 題 · 基爾比為什麼把零件做在同一塊半導體上' },
+  { id:'q2',  short:'Q2',     label:'第 2 題 · 導線繞路有什麼缺點' },
+  { id:'q3',  short:'Q3',     label:'第 3 題 · 幫諾伊斯想辦法（5×5 接好兩條線）' },
+  { id:'q4a', short:'Q4預測', label:'第 4 題 · 打賭：三條交叉導線最少要幾層' },
+  { id:'q4b', short:'Q4實作', label:'第 4 題 · 實際接好三條交叉導線', note:'完成就算' },
+  { id:'q5',  short:'Q5',     label:'第 5 題 · 真實晶片為什麼有十幾層導線' },
+  { id:'q6',  short:'Q6',     label:'第 6 題 · 組裝晶片，第一次就排對', noBreakdown:true },
+];
 const mockQ = LIVE_MOCK ? 'mock=1' : '';
 const studentBase = () => location.origin + location.pathname.replace(/teacher\.html$/, '');
 const studentUrl = pin => studentBase() + '?room=' + pin + (mockQ ? '&' + mockQ : '');
 
 let be = null, uid = null, pin = null, room = null, players = [], view = 'home';
-let offRoom = null, offPlayers = null, timer = null;
+let offRoom = null, offPlayers = null, offAnswers = null, timer = null;
+let answers = {}, statsOpen = false;   // 每位學生每題第一次的作答
 const reached = {};
 let frozen = null;   // 按下結束時的名次，頒獎台用這份，不再變動   // 老師這台看到某人分數上升的時間，用來決定同分名次
 
@@ -300,8 +331,16 @@ async function openRoom(p){
     players.forEach(p => { const r = reached[p.id]; if (!r || p.score > r.score) reached[p.id] = { score:p.score, at: r && p.score <= r.score ? r.at : now }; });
     refresh();
   });
+  answers = {};
+  offAnswers = be.answersWatch(pin, list => {
+    if (!list) return;
+    const since = room ? room.createdAt : 0;
+    answers = {};
+    list.forEach(a => { if ((a.updatedAt || 0) >= since - 60000) answers[a.id] = a; });
+    if (statsOpen) drawStats();
+  });
 }
-function stopWatch(){ if (offRoom) offRoom(); if (offPlayers) offPlayers(); offRoom = offPlayers = null; clearInterval(timer); timer = null; }
+function stopWatch(){ if (offRoom) offRoom(); if (offPlayers) offPlayers(); if (offAnswers) offAnswers(); offRoom = offPlayers = offAnswers = null; statsOpen = false; clearInterval(timer); timer = null; }
 function refresh(){ if (view === 'lobby') drawLobbyList(); else if (view === 'board') drawBoard(); else if (view === 'podium' && (!frozen || !frozen.length) && players.length) drawPodium(true); }
 
 /* ---------- 移出學生（點兩下） ---------- */
@@ -312,7 +351,7 @@ function askRemove(el, id, name){
     setTimeout(() => { if (armed === id){ armed = null; refresh(); } }, 3000);
     return;
   }
-  armed = null; be.playerDelete(pin, id).catch(() => {});
+  armed = null; be.playerDelete(pin, id).catch(() => {}); be.answerDelete(pin, id).catch(() => {});
 }
 
 /* ---------- 大廳 ---------- */
@@ -357,6 +396,7 @@ function renderBoard(){
     <div class="stat"><span>完成</span><b id="sD">0</b></div>
     <div class="stat"><span>時間</span><b id="sT">00:00</b></div>
     <button class="btn ghost" type="button" id="showQr">讓更多人加入</button>
+    <button class="btn ghost" type="button" id="statsBtn">各題答對情況</button>
     <button class="btn" type="button" id="endBtn">結束並頒獎</button>`) + `
     <div class="boardHead" id="bh"><span>名次</span><span>工程師</span><div class="stopsHead">${STOPS.map((s, i) => `<span><em>${i + 1}</em><b>${s}</b></span>`).join('')}</div><span>零件</span><span style="text-align:right">分數</span></div>
     <div class="rows" id="rows"></div>
@@ -364,6 +404,7 @@ function renderBoard(){
   bindTop();
   $('endBtn').onclick = () => { $('endBtn').disabled = true; be.roomUpdate(pin, { status:'ended', endedAt:Date.now() }).catch(() => { $('endBtn').disabled = false; }); };
   $('showQr').onclick = showQrOverlay;
+  $('statsBtn').onclick = showStats;
   clearInterval(timer);
   const tick = () => { const end = room && room.status === 'ended' && room.endedAt ? room.endedAt : Date.now(); const t = room && room.startedAt ? Math.max(0, Math.floor((end - room.startedAt) / 1000)) : 0; const el = $('sT'); if (el) el.textContent = String(Math.floor(t/60)).padStart(2,'0') + ':' + String(t%60).padStart(2,'0'); };
   tick(); timer = setInterval(tick, 1000);
@@ -408,13 +449,19 @@ function showQrOverlay(){
 /* ---------- 頒獎台 ---------- */
 function renderPodium(){
   view = 'podium'; clearInterval(timer); frozen = players.length ? ranked() : null;
-  $('app').innerHTML = topBar(`<button class="btn ghost" type="button" id="backBoard">看完整排行</button><button class="btn ghost" type="button" id="again">開新的一場</button><button class="btn danger" type="button" id="wipe">刪除這場的資料</button>`) + `
+  $('app').innerHTML = topBar(`<button class="btn ghost" type="button" id="backBoard">看完整排行</button><button class="btn ghost" type="button" id="statsBtn2">各題答對情況</button><button class="btn ghost" type="button" id="csvBtn">下載成績</button><button class="btn ghost" type="button" id="again">開新的一場</button><button class="btn danger" type="button" id="wipe">刪除這場的資料</button>`) + `
     <div style="text-align:center;font-family:var(--f-display);font-weight:900;font-size:clamp(30px,4vw,54px);letter-spacing:.08em">晶片工程師頒獎台</div>
     <div class="podium" id="podium"></div><div class="rest" id="rest"></div>`;
   bindTop();
   $('backBoard').onclick = () => { frozen = null; renderBoard(); };
   $('again').onclick = () => { store.del(HKEY); stopWatch(); renderHome(); };
-  $('wipe').onclick = () => closeRoom(true);
+  $('statsBtn2').onclick = showStats;
+  $('csvBtn').onclick = downloadCsv;
+  $('wipe').onclick = () => {
+    const b = $('wipe');
+    if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = '確定刪除？刪了就找不回來，記得先下載成績'; setTimeout(() => { if (b.isConnected){ b.dataset.armed = ''; b.textContent = '刪除這場的資料'; } }, 5000); return; }
+    closeRoom(true);
+  };
   drawPodium(true);
 }
 function drawPodium(animate){
@@ -444,12 +491,71 @@ function confetti(){
   requestAnimationFrame(step);
 }
 
+/* ---------- 各題答對情況 ---------- */
+function showStats(){
+  statsOpen = true;
+  const ov = $('ov');
+  ov.innerHTML = `<div class="statCard" role="dialog" aria-modal="true" aria-label="各題答對情況">
+    <div class="statHead"><div><h2>各題答對情況</h2><p>「第一次就答對」是學生第一次作答、還沒看到任何提示或回饋時就答對的人數。</p></div>
+      <div class="tools"><button class="btn" type="button" id="csvBtn2">下載成績</button><button class="btn ghost" type="button" id="closeStats">關閉</button></div></div>
+    <div id="statsBody"></div></div>`;
+  ov.hidden = false;
+  $('closeStats').onclick = () => { statsOpen = false; ov.hidden = true; ov.innerHTML = ''; };
+  $('csvBtn2').onclick = downloadCsv;
+  drawStats();
+}
+function drawStats(){
+  const box = $('statsBody'); if (!box) return;
+  const list = Object.values(answers);
+  if (!list.length){
+    box.innerHTML = `<p class="note" style="padding:20px 0">還沒有收到作答紀錄。學生答完第 1 題後就會出現。<br>如果學生已經在作答卻一直沒有資料，請確認 Firebase 的安全規則已經更新。</p>`;
+    return;
+  }
+  box.innerHTML = `<table class="statTable"><thead><tr><th>題目</th><th class="num">第一次就答對</th><th>比例</th><th>最常選的錯誤答案</th></tr></thead><tbody>` +
+    QMETA.map(m => {
+      const got = list.filter(a => a.q && a.q[m.id]);
+      const n = got.length, ok = got.filter(a => a.q[m.id].ok).length;
+      const pct = n ? Math.round(ok / n * 100) : 0;
+      const wrong = {};
+      if (!m.noBreakdown) got.filter(a => !a.q[m.id].ok).forEach(a => { const k = a.q[m.id].a || '（空白）'; wrong[k] = (wrong[k] || 0) + 1; });
+      const top = Object.entries(wrong).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, c]) => `${esc(k)} ×${c}`).join('、');
+      return `<tr><td>${esc(m.label)}${m.note ? `<small>（${esc(m.note)}）</small>` : ''}</td>
+        <td class="num"><b>${ok}</b> / ${n} 人</td>
+        <td><div class="pbar"><i style="width:${pct}%"></i></div><span class="pct">${n ? pct + '%' : '還沒有人作答'}</span></td>
+        <td class="wrong">${top || (n ? (m.noBreakdown ? '' : '沒有人答錯') : '')}</td></tr>`;
+    }).join('') + `</tbody></table><p class="legend" style="margin-top:12px">已收到 ${list.length} 位學生的作答紀錄。被移出的學生不列入。</p>`;
+}
+function downloadCsv(){
+  const rk = ranked();
+  const head = ['名次', '姓名', '班級', '分數', '完成全部'].concat(...QMETA.map(m => [m.short + ' 第一次', m.short + ' 作答']));
+  const rows = rk.map((p, i) => [i + 1, p.name, p.cls || '', p.score || 0, p.done ? '是' : '否'].concat(...QMETA.map(m => {
+    const a = answers[p.id] && answers[p.id].q && answers[p.id].q[m.id];
+    return a ? [a.ok ? '○' : '╳', a.a] : ['', ''];
+  })));
+  const list = Object.values(answers);
+  const sum = ['', '第一次就答對人數', '', '', ''].concat(...QMETA.map(m => {
+    const got = list.filter(a => a.q && a.q[m.id]);
+    return [`${got.filter(a => a.q[m.id].ok).length}/${got.length}`, ''];
+  }));
+  const csv = '﻿' + [head].concat(rows, [[]], [sum]).map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const d = new Date(), pad = n => String(n).padStart(2, '0');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  a.download = `導線走線大師_房間${pin}_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
 /* ---------- 關閉房間 ---------- */
 async function closeRoom(wipe, msg){
   const p = pin;
   stopWatch(); store.del(HKEY);
   try {
-    if (wipe){ for (const pl of players) await be.playerDelete(p, pl.id); await be.roomDelete(p); }
+    if (wipe){
+      const ids = new Set(players.map(pl => pl.id).concat(Object.keys(answers)));
+      for (const id of ids){ await be.playerDelete(p, id).catch(() => {}); await be.answerDelete(p, id).catch(() => {}); }
+      await be.roomDelete(p);
+    }
     else await be.roomUpdate(p, { status:'ended', endedAt:Date.now() });
   } catch(e){}
   room = null; players = []; pin = null;
