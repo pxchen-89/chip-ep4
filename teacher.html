@@ -50,13 +50,15 @@ body{margin:0;background:radial-gradient(1200px 700px at 80% -10%,var(--bg2),var
 .note.warn{color:var(--accent)}
 
 /* 大廳 */
-.lobby{flex:1;display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:clamp(18px,3vw,48px);align-items:start}
-@media (max-width:900px){.lobby{grid-template-columns:minmax(0,1fr)}}
-.qrCard{background:#fff;border-radius:24px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px;color:#10143a}
-.qrCard .qr img,.qrCard .qr canvas{width:min(34vh,340px)!important;height:auto!important}
-.qrCard .u{font-family:var(--f-mono);font-size:15px;text-align:center;word-break:break-all;max-width:340px}
-.pinBox .lab{font-size:clamp(18px,1.8vw,24px);color:var(--muted)}
-.pinBox .pin{font-family:var(--f-mono);font-weight:700;font-size:clamp(72px,11vw,150px);letter-spacing:.12em;line-height:1;color:var(--accent)}
+.lobby{--qr:min(66vh,46vw);flex:1;display:flex;align-items:center;justify-content:center;gap:clamp(24px,4vw,72px);min-height:0}
+@media (max-width:900px){.lobby{--qr:min(80vw,60vh);flex-direction:column}}
+.qrCard{background:#fff;border-radius:28px;padding:clamp(16px,1.6vw,26px);display:flex;flex-direction:column;align-items:center;gap:10px;color:#10143a;flex:none}
+.qrCard .qr img,.qrCard .qr canvas{width:var(--qr)!important;height:auto!important;image-rendering:pixelated}
+.qrCard .u{font-family:var(--f-mono);font-size:clamp(14px,1.2vw,18px);text-align:center;word-break:break-all;max-width:var(--qr)}
+.lobbyInfo{display:flex;flex-direction:column;min-width:0;max-width:600px;max-height:calc(100vh - 175px)}
+.lobbyInfo .chips{overflow:auto;min-height:48px;padding:2px}
+.pinBox .lab{font-size:clamp(18px,1.8vw,26px);color:var(--muted)}
+.pinBox .pin{font-family:var(--f-mono);font-weight:700;font-size:clamp(80px,10vw,180px);letter-spacing:.12em;line-height:1;color:var(--accent)}
 .pinBox .how{font-size:clamp(17px,1.6vw,22px);color:var(--ink);margin:10px 0 0;line-height:1.6}
 .joined{display:flex;align-items:baseline;gap:12px;margin:24px 0 12px;font-family:var(--f-display);font-size:clamp(22px,2.2vw,30px);font-weight:900}
 .joined b{font-family:var(--f-mono);font-size:1.4em;color:var(--accent)}
@@ -366,16 +368,16 @@ function renderLobby(){
   view = 'lobby';
   $('app').innerHTML = topBar(`<button class="btn ghost" type="button" id="endEarly">取消這一場</button>`) + `<div class="lobby">
     <div class="qrCard"><div class="qr" id="qr"></div><div class="u">${esc(studentUrl(pin).replace(/^https?:\/\//, ''))}</div></div>
-    <div>
+    <div class="lobbyInfo">
       <div class="pinBox"><div class="lab">房間代碼</div><div class="pin">${esc(pin)}</div>
-        <p class="how">用平板掃左邊的 QR code 加入。<br>或打開 <b>${esc(studentBase().replace(/^https?:\/\//, ''))}</b>，輸入房間代碼。</p></div>
+        <p class="how">用平板掃 QR code 加入。<br>或打開 <b>${esc(studentBase().replace(/^https?:\/\//, ''))}</b>，輸入房間代碼。</p></div>
       <div class="joined">已加入 <b id="joinN">0</b> 人</div>
       <div class="chips" id="chips"></div>
       <p class="legend" style="margin-top:10px">名字不恰當的話，點兩下那個名字就能把他移出房間。</p>
       <div class="lobbyAct"><button class="btn huge" type="button" id="startBtn">開始！</button></div>
     </div></div>`;
   bindTop();
-  if (window.QRCode) new QRCode($('qr'), { text:studentUrl(pin), width:340, height:340, correctLevel:QRCode.CorrectLevel.M });
+  if (window.QRCode) new QRCode($('qr'), { text:studentUrl(pin), width:900, height:900, correctLevel:QRCode.CorrectLevel.M });
   $('startBtn').onclick = () => { $('startBtn').disabled = true; be.roomUpdate(pin, { status:'playing', startedAt:Date.now() }).catch(() => { $('startBtn').disabled = false; }); };
   $('endEarly').onclick = () => closeRoom(true, '已取消這一場，資料已刪除。');
   drawLobbyList();
