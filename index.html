@@ -396,7 +396,7 @@ const PARTS = {
   ox1:{ t:'不導電材料', sw:'ox' },
   m2:{ t:'第 2 層導線', sw:'m2' },
   ox2:{ t:'不導電材料', sw:'ox' },
-  shell:{ t:'零件的保護外殼', sw:'shell' },
+  shell:{ t:'保護外殼', sw:'shell' },
 };
 const BAG_ORDER = ['si','m1','ox1','m2','ox2'];
 const swStyle = sw => ({
@@ -480,7 +480,7 @@ const ITEMS = [
   {id:'q4a', name:'晶片工廠 · 打賭猜層數', learn:'每兩條都交叉的三條導線，要放在三個不同的層。', pts:10},
   {id:'q4b', name:'晶片工廠 · 接好三條交叉導線', learn:'需要時就往上多蓋一層。', pts:10},
   {id:'q5', name:'晶片展示間 · 為什麼有十幾層', learn:'電晶體越多、晶片越小，導線就要蓋越多層。', pts:15},
-  {id:'q6', name:'晶片研究室 · 組裝阿寶的晶片', learn:'最下面是做好電晶體的矽晶圓，上面一層一層蓋導線，交錯的兩層導線之間用不導電材料隔開。', pts:15},
+  {id:'q6', name:'晶片研究室 · 組裝阿寶的晶片', learn:'最下面是做好電晶體的矽晶圓，上面一層一層蓋導線，交錯的兩層導線之間用不導電材料隔開；做好以後可以再用外殼把整顆晶片包起來保護。', pts:15},
 ];
 
 const STOPS = ['訓練場','1958 基爾比','1959 走廊','諾伊斯辦公室','晶片工廠','晶片展示間','晶片研究室'];
@@ -745,15 +745,20 @@ function renderScene(id){
 let stack = [];
 function scoreStack(seq){
   // 依課程簡報第 28、30、34 頁：電晶體做在最下面的矽晶圓上，導線往上蓋，交錯的兩層導線之間用不導電材料隔開。
-  // 第 1 層導線底下多鋪一層不導電材料（第 27 頁：蓋在電晶體上保護它）也算對。
-  const ids = seq.map(c => c.startsWith('ox') ? 'ox' : c);
+  // 第 1 層導線底下多鋪一層不導電材料（第 27 頁）也算對。
+  // 保護外殼：可以不放；放在最上面代表把整顆晶片封起來（第 24 頁「再封起來」），也算對；夾在中間或下面才算錯。
+  const raw = seq.map(c => c.startsWith('ox') ? 'ox' : c);
+  const iS = raw.indexOf('shell');
+  if (iS >= 0 && iS !== raw.length - 1) return 0;
+  const ids = raw.filter(x => x !== 'shell');
   const iM1 = ids.indexOf('m1'), iM2 = ids.indexOf('m2');
-  const ok = ids[0] === 'si' && !ids.includes('shell') && iM1 > 0 && iM2 > iM1 && ids.slice(iM1+1, iM2).includes('ox');
+  const ok = ids[0] === 'si' && iM1 > 0 && iM2 > iM1 && ids.slice(iM1+1, iM2).includes('ox');
   return ok ? 15 : 0;
 }
 function stackHint(seq){
   const ids = seq.map(c => c.startsWith('ox') ? 'ox' : c);
-  if (ids.includes('shell')) return '晶片裡的電晶體都做在同一塊矽晶圓上了，還需要每個零件各自的保護外殼嗎？';
+  const iS = ids.indexOf('shell');
+  if (iS >= 0 && iS !== ids.length - 1) return '外殼要包在哪裡，才保護得到整顆晶片？晶片裡面的零件，不需要各自包一個外殼喔。';
   if (ids[0] !== 'si') return '電晶體要先做好，才能在上面蓋導線。哪一張應該放在最下面？';
   if (!ids.includes('m1') || !ids.includes('m2')) return '兩層導線都要用上喔，阿寶的晶片需要兩層導線。';
   const iM1 = ids.indexOf('m1'), iM2 = ids.indexOf('m2');
@@ -776,7 +781,7 @@ function renderStack(){
   if (!extra.cardOrder){ extra.cardOrder = shuffle(['si','m1','ox1','m2','ox2','shell']); save(); }
   stack = [];
   showCard(`<div class="scene"><div class="place">2113 · 晶片研究室</div><div class="sceneBody">
-    ${talk('bot', '零件都收集到了，我還在研究室抽屜找到一個「零件的保護外殼」。把需要的零件<b>從最下面開始</b>一張一張疊上去，組成阿寶的晶片。用不到的東西就不要放！')}
+    ${talk('bot', '零件都收集到了，我還在研究室抽屜找到一個「保護外殼」，要不要用、放在哪裡，你自己決定。把需要的零件<b>從最下面開始</b>一張一張疊上去，組成阿寶的晶片！')}
     <div class="stackWrap">
       <div><p class="label">零件背包</p><div class="pile" id="pile"></div></div>
       <div><div class="tower" id="tower"></div><div class="towerLab"><span>↓ 最先放的在最下面</span><span>點一下可以拿下來</span></div></div>
@@ -809,7 +814,8 @@ function openVerify(draw){
       const glow = $('glow');
       if (pts === 15){
         glow.classList.add('on'); sfx('win');
-        $('vReact').innerHTML = talk('bot_happy', '燈亮了！驗證通過！晶片機台啟動了，阿寶有救了！', 'ok', true) + `<div class="actions"><button class="btn big" type="button" id="vNext">領取工程師證</button></div>`;
+        const wrapped = stack[stack.length - 1] === 'shell';
+        $('vReact').innerHTML = talk('bot_happy', '燈亮了！驗證通過！晶片機台啟動了，阿寶有救了！' + (wrapped ? '你還幫晶片包上外殼保護，就像基爾比說的，所有零件做好以後再一起包起來。' : ''), 'ok', true) + `<div class="actions"><button class="btn big" type="button" id="vNext">領取工程師證</button></div>`;
         $('vNext').onclick = next; $('vNext').focus();
       } else {
         sfx('hmm');
