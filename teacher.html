@@ -456,14 +456,14 @@ function showQrOverlay(){
 /* ---------- 頒獎台 ---------- */
 function renderPodium(){
   view = 'podium'; clearInterval(timer); frozen = players.length ? ranked() : null;
-  $('app').innerHTML = topBar(`<button class="btn ghost" type="button" id="backBoard">看完整排行</button><button class="btn ghost" type="button" id="statsBtn2">各題答對情況</button><button class="btn ghost" type="button" id="csvBtn">下載成績</button><button class="btn ghost" type="button" id="again">開新的一場</button><button class="btn danger" type="button" id="wipe">刪除這場的資料</button>`) + `
+  $('app').innerHTML = topBar(`<button class="btn ghost" type="button" id="backBoard">看完整排行</button><button class="btn ghost" type="button" id="statsBtn2">各題答對情況</button><button class="btn ghost" type="button" id="csvBtn">下載成績（Excel）</button><button class="btn ghost" type="button" id="again">開新的一場</button><button class="btn danger" type="button" id="wipe">刪除這場的資料</button>`) + `
     <div style="text-align:center;font-family:var(--f-display);font-weight:900;font-size:clamp(30px,4vw,54px);letter-spacing:.08em">晶片工程師頒獎台</div>
     <div class="podium" id="podium"></div><div class="rest" id="rest"></div>`;
   bindTop();
   $('backBoard').onclick = () => { frozen = null; renderBoard(); };
   $('again').onclick = () => { store.del(HKEY); stopWatch(); renderHome(); };
   $('statsBtn2').onclick = showStats;
-  $('csvBtn').onclick = downloadCsv;
+  $('csvBtn').onclick = () => downloadXlsx($('csvBtn'));
   $('wipe').onclick = () => {
     const b = $('wipe');
     if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = '確定刪除？刪了就找不回來，記得先下載成績'; setTimeout(() => { if (b.isConnected){ b.dataset.armed = ''; b.textContent = '刪除這場的資料'; } }, 5000); return; }
@@ -504,11 +504,11 @@ function showStats(){
   const ov = $('ov');
   ov.innerHTML = `<div class="statCard" role="dialog" aria-modal="true" aria-label="各題答對情況">
     <div class="statHead"><div><h2>各題答對情況</h2><p>「第一次就答對」是學生第一次作答、還沒看到任何提示或回饋時就答對的人數。</p></div>
-      <div class="tools"><button class="btn" type="button" id="csvBtn2">下載成績</button><button class="btn ghost" type="button" id="closeStats">關閉</button></div></div>
+      <div class="tools"><button class="btn" type="button" id="csvBtn2">下載成績（Excel）</button><button class="btn ghost" type="button" id="closeStats">關閉</button></div></div>
     <div id="statsBody"></div></div>`;
   ov.hidden = false;
   $('closeStats').onclick = () => { statsOpen = false; ov.hidden = true; ov.innerHTML = ''; };
-  $('csvBtn2').onclick = downloadCsv;
+  $('csvBtn2').onclick = () => downloadXlsx($('csvBtn2'));
   drawStats();
 }
 function drawStats(){
@@ -524,7 +524,7 @@ function drawStats(){
       const n = got.length, ok = got.filter(a => a.q[m.id].ok).length;
       const pct = n ? Math.round(ok / n * 100) : 0;
       const wrong = {};
-      if (!m.noBreakdown) got.filter(a => !a.q[m.id].ok).forEach(a => { const k = a.q[m.id].a || '（空白）'; wrong[k] = (wrong[k] || 0) + 1; });
+      if (!m.noBreakdown) got.filter(a => !a.q[m.id].ok).forEach(a => { const k = ansText(m.id, a.q[m.id]); wrong[k] = (wrong[k] || 0) + 1; });
       const top = Object.entries(wrong).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, c]) => `${esc(k)} ×${c}`).join('、');
       return `<tr><td>${esc(m.label)}${m.note ? `<small>（${esc(m.note)}）</small>` : ''}</td>
         <td class="num"><b>${ok}</b> / ${n} 人</td>
@@ -532,25 +532,138 @@ function drawStats(){
         <td class="wrong">${top || (n ? (m.noBreakdown ? '' : '沒有人答錯') : '')}</td></tr>`;
     }).join('') + `</tbody></table><p class="legend" style="margin-top:12px">已收到 ${list.length} 位學生的作答紀錄。被移出的學生不列入。</p>`;
 }
-function downloadCsv(){
-  const rk = ranked();
-  const head = ['名次', '姓名', '班級', '分數', '完成全部'].concat(...QMETA.map(m => [m.short + ' 第一次', m.short + ' 作答']));
-  const rows = rk.map((p, i) => [i + 1, p.name, p.cls || '', p.score || 0, p.done ? '是' : '否'].concat(...QMETA.map(m => {
-    const a = answers[p.id] && answers[p.id].q && answers[p.id].q[m.id];
-    return a ? [a.ok ? '○' : '╳', a.a] : ['', ''];
-  })));
-  const list = Object.values(answers);
-  const sum = ['', '第一次就答對人數', '', '', ''].concat(...QMETA.map(m => {
-    const got = list.filter(a => a.q && a.q[m.id]);
-    return [`${got.filter(a => a.q[m.id].ok).length}/${got.length}`, ''];
-  }));
-  const csv = '﻿' + [head].concat(rows, [[]], [sum]).map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
-  const d = new Date(), pad = n => String(n).padStart(2, '0');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
-  a.download = `導線走線大師_房間${pin}_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.csv`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+/* ---------- 下載成績（Excel：說明／各題統計／學生總表／作答明細） ---------- */
+// 題目原文、選項全文、正確答案（與學生端的題目一致）
+const QBANK = {
+  q1:  { name:'Q1 基爾比', text:'電路板上每個零件都包著自己的外殼，外殼加起來比核心還佔空間，要怎麼讓電腦變小？（給基爾比一個建議）',
+         opts:{ '同一塊半導體':'零件的核心都是半導體做的，把它們全部做在同一塊半導體上，再一起包起來', '不導電材料隔開':'在導線之間放不導電材料，把導線隔開', '搬到大房間':'把電腦搬到更大的房間', '便宜零件':'換便宜一點的零件' }, ok:'同一塊半導體' },
+  q2:  { name:'Q2 繞路的缺點', text:'導線繞路就能接好，為什麼科學家還要想別的辦法？',
+         opts:{ '電路變大':'導線繞路會變長，電路要佔更大的地方，電腦就縮不小', '不導電':'繞路的導線會變得不導電', '電晶體壞':'導線繞路會讓電晶體壞掉', '沒有壞處':'繞路沒有壞處，科學家只是想試試新方法' }, ok:'電路變大' },
+  q3:  { name:'Q3 諾伊斯', text:'板子縮成 5×5 以後，兩條導線怎麼接都會碰在一起，要怎麼做才能接好？（給諾伊斯一個辦法）',
+         opts:{ '板子加大':'把板子加大成 7×7，讓導線繞路', '接在一起':'讓兩條導線直接接在一起', '不導電材料蓋一層':'在導線上面鋪一層不導電材料，再往上蓋一層導線', '導線變細':'把導線做得更細，就能從旁邊擠過去' }, ok:'不導電材料蓋一層' },
+  q4a: { name:'Q4 預測層數', text:'三條導線（A–D、B–E、C–F）每兩條都會交叉，最少要蓋幾層導線才接得起來？（先預測，再實際接）',
+         opts:{ '1 層':'1 層', '2 層':'2 層', '3 層':'3 層', '4 層':'4 層' }, ok:'3 層' },
+  q4b: { name:'Q4 接好交叉導線', text:'實際把三條兩兩交叉的導線接好（完成就算答對，卡太久按跳過算未答對）',
+         opts:{ '完成':'完成', '跳過':'跳過' }, ok:'完成' },
+  q5:  { name:'Q5 十幾層導線', text:'一顆小小的晶片裡有數百億個電晶體，導線大約蓋了十幾層，為什麼要蓋這麼多層？',
+         opts:{ '導線會交叉':'電晶體很多、晶片又小，導線放在同一層一定會交叉碰在一起，只好往上分很多層', '比較堅固':'層數越多，晶片越堅固，摔到也不會壞', '不同顏色的電':'每一層導線負責傳送不同顏色的電', '比較好夾':'晶片做厚一點，工廠的機器比較好夾' }, ok:'導線會交叉' },
+  q6:  { name:'Q6 組裝晶片', text:'用收集到的零件，由下往上組裝一顆有兩層導線的晶片（第一次就排對）',
+         okText:'由下往上：矽晶圓 → 第 1 層導線 → 不導電材料 → 第 2 層導線。第 1 層導線下面多鋪一層不導電材料也對；保護外殼可以不放，或放在最上面（把整顆晶片包起來）。' },
+};
+const QIDS = ['q1', 'q2', 'q3', 'q4a', 'q4b', 'q5', 'q6'];
+const okText = id => QBANK[id].okText || QBANK[id].opts[QBANK[id].ok];
+const ansText = (id, a) => {
+  if (!a) return '（未作答）';
+  if (a.a === '跳過') return '（跳過）';
+  return (QBANK[id].opts && QBANK[id].opts[a.a]) || a.a;
+};
+function loadXLSX(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => res(window.XLSX); s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+async function downloadXlsx(btn){
+  const label = btn ? btn.textContent : '';
+  if (btn){ btn.disabled = true; btn.textContent = '準備中…'; }
+  try {
+    const X = await loadXLSX();
+    const d = new Date(), pad = n => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    // 名單：排行榜上的學生，再補上只有作答紀錄的人
+    const rk = ranked();
+    const people = rk.map((p, i) => ({ id:p.id, rank:i + 1, name:p.name, cls:p.cls || '', score:p.score || 0, done:!!p.done }));
+    Object.values(answers).forEach(a => { if (!people.some(p => p.id === a.id)) people.push({ id:a.id, rank:'', name:a.name, cls:'', score:'', done:false }); });
+    const qOf = (pid, id) => answers[pid] && answers[pid].q ? answers[pid].q[id] : null;
+
+    // 1. 說明
+    const intro = [
+      ['導線走線大師（晶片系列 EP4 時空任務）全班即時競賽成績'],
+      [],
+      ['房間代碼', String(pin)],
+      ['匯出時間', stamp],
+      ['學生人數', people.length],
+      [],
+      ['名詞', '說明'],
+      ['第一次就答對', '學生第一次作答、還沒看到任何提示或回饋時就選對。答錯後可以重選，但成績只記第一次。'],
+      ['分數', '每通過一關 +100，第一次就答對的任務再 +100，滿分 1600。'],
+      ['完成全部', '學生是否走到最後的工程師證畫面。老師按「結束並頒獎」之後，還沒走完的學生的作答不會再記錄。'],
+      ['未作答', '學生還沒走到那一題（例如老師提早結束）。'],
+      [],
+      ['工作表', '內容'],
+      ['各題統計', '每一題的作答人數、第一次就答對人數與答對率；下方有每個選項被選了幾次。'],
+      ['學生總表', '一位學生一列，每一題寫「是／否／未作答」。'],
+      ['作答明細', '一位學生的一題一列（長表格），包含題目、學生第一次的答案、正確答案，方便篩選或交給 AI 分析。'],
+      [],
+      ['題號', '題目', '正確答案'],
+    ].concat(QIDS.map(id => [QBANK[id].name, QBANK[id].text, okText(id)]));
+    const wsIntro = X.utils.aoa_to_sheet(intro);
+    wsIntro['!cols'] = [{ wch:16 }, { wch:70 }, { wch:60 }];
+
+    // 2. 各題統計
+    const stat = [['題號', '題目', '正確答案', '作答人數', '第一次就答對人數', '第一次答對率', '最常選的錯誤答案']];
+    QIDS.forEach(id => {
+      const got = people.filter(p => qOf(p.id, id));
+      const ok = got.filter(p => qOf(p.id, id).ok).length;
+      const wrong = {};
+      if (id !== 'q6') got.filter(p => !qOf(p.id, id).ok).forEach(p => { const t = ansText(id, qOf(p.id, id)); wrong[t] = (wrong[t] || 0) + 1; });
+      const top = Object.entries(wrong).sort((x, y) => y[1] - x[1])[0];
+      stat.push([QBANK[id].name, QBANK[id].text, okText(id), got.length, ok, got.length ? ok / got.length : '', top ? `${top[0]}（${top[1]} 人）` : '']);
+    });
+    stat.push([], ['選項分布（每個選項第一次被選的人數）'], ['題號', '選項', '是否為正確答案', '選這個的人數']);
+    QIDS.filter(id => QBANK[id].opts).forEach(id => {
+      Object.entries(QBANK[id].opts).forEach(([k, t]) => {
+        const n = people.filter(p => { const a = qOf(p.id, id); return a && a.a === k; }).length;
+        stat.push([QBANK[id].name, t, k === QBANK[id].ok ? '是' : '否', n]);
+      });
+    });
+    const wsStat = X.utils.aoa_to_sheet(stat);
+    for (let r = 1; r <= QIDS.length; r++){ const c = wsStat[X.utils.encode_cell({ r, c:5 })]; if (c && typeof c.v === 'number') c.z = '0%'; }
+    wsStat['!cols'] = [{ wch:18 }, { wch:60 }, { wch:50 }, { wch:10 }, { wch:16 }, { wch:13 }, { wch:40 }];
+
+    // 3. 學生總表
+    const sumHead = ['名次', '姓名', '班級', '分數', '完成全部', '第一次就答對題數', '已作答題數'].concat(QIDS.map(id => QBANK[id].name + ' 第一次就答對'));
+    const sumRows = people.map(p => {
+      const got = QIDS.filter(id => qOf(p.id, id));
+      return [p.rank, p.name, p.cls, p.score, p.done ? '是' : '否', got.filter(id => qOf(p.id, id).ok).length, got.length]
+        .concat(QIDS.map(id => { const a = qOf(p.id, id); return a ? (a.ok ? '是' : '否') : '未作答'; }));
+    });
+    const wsSum = X.utils.aoa_to_sheet([sumHead].concat(sumRows));
+    wsSum['!cols'] = [{ wch:6 }, { wch:14 }, { wch:14 }, { wch:8 }, { wch:10 }, { wch:16 }, { wch:12 }].concat(QIDS.map(() => ({ wch:22 })));
+    if (sumRows.length) wsSum['!autofilter'] = { ref: X.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:sumRows.length, c:sumHead.length - 1 } }) };
+
+    // 4. 作答明細（長表格）
+    const detHead = ['房間代碼', '姓名', '班級', '名次', '題號', '題目', '學生第一次的答案', '正確答案', '第一次就答對'];
+    const detRows = [];
+    people.forEach(p => QIDS.forEach(id => {
+      const a = qOf(p.id, id);
+      detRows.push([String(pin), p.name, p.cls, p.rank, QBANK[id].name, QBANK[id].text, ansText(id, a), okText(id), a ? (a.ok ? '是' : '否') : '未作答']);
+    }));
+    const wsDet = X.utils.aoa_to_sheet([detHead].concat(detRows));
+    wsDet['!cols'] = [{ wch:9 }, { wch:14 }, { wch:14 }, { wch:6 }, { wch:16 }, { wch:50 }, { wch:50 }, { wch:50 }, { wch:12 }];
+    if (detRows.length) wsDet['!autofilter'] = { ref: X.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:detRows.length, c:detHead.length - 1 } }) };
+
+    const wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, wsIntro, '說明');
+    X.utils.book_append_sheet(wb, wsStat, '各題統計');
+    X.utils.book_append_sheet(wb, wsSum, '學生總表');
+    X.utils.book_append_sheet(wb, wsDet, '作答明細');
+    const out = X.write(wb, { bookType:'xlsx', type:'array' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = `導線走線大師_成績_房間${pin}_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  } catch(e){
+    if (btn) btn.textContent = '下載失敗，請檢查網路後再按一次';
+    return;
+  } finally {
+    if (btn && btn.textContent === '準備中…'){ btn.disabled = false; btn.textContent = label; }
+    else if (btn) btn.disabled = false;
+  }
 }
 
 /* ---------- 關閉房間 ---------- */
