@@ -332,7 +332,14 @@ async function openRoom(p){
     refresh();
   });
   answers = {};
-  offAnswers = be.answersWatch(pin, list => {
+  watchAnswers(p);
+}
+// 作答紀錄的監聽如果被拒絕（例如規則還沒更新），每 5 秒重新試一次
+function watchAnswers(p){
+  if (offAnswers) offAnswers();
+  offAnswers = be.answersWatch(p, list => {
+    if (pin !== p) return;
+    if (list === undefined){ offAnswers = null; setTimeout(() => { if (pin === p && !offAnswers) watchAnswers(p); }, 5000); return; }
     if (!list) return;
     const since = room ? room.createdAt : 0;
     answers = {};
