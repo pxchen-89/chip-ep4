@@ -13,7 +13,7 @@
 :root{
   --bg:#e9edf5; --panel:#ffffff; --ink:#1b2142; --muted:#5a6286; --line:#d3d9e8;
   --si:#dfe3ec; --si-grid:#c4cadb; --si-edge:#b3bace;
-  --oxide:#e48fcb; --navy:#2b3f8a; --navy-soft:#dfe4f6;
+  --oxide:#e48fcb; --oxide-ink:#3a0f2c; --oxide-deep:#b85a98; --navy:#2b3f8a; --navy-soft:#dfe4f6;
   --m1:#d99a12; --m2:#14a191; --m3:#d64f78; --m4:#6a63d8; --m5:#3a8fd9;
   --danger:#e3412a; --ok:#25965a; --ok-soft:#dcf3e5; --warm-soft:#fff3d6;
   --chip:#2b3f8a; --chip-ink:#ffffff; --bubble:#f3f5fb;
@@ -25,7 +25,7 @@
   :root:not([data-theme="light"]){
     --bg:#11152e; --panel:#1a1f40; --ink:#eef0fb; --muted:#a2a9cc; --line:#2e3566;
     --si:#262c52; --si-grid:#363e6e; --si-edge:#1c2146;
-    --oxide:#c46aab; --navy:#8fa2ff; --navy-soft:#262f63;
+    --oxide:#e48fcb; --oxide-ink:#2a0a20; --oxide-deep:#9a4a80; --navy:#8fa2ff; --navy-soft:#262f63;
     --m1:#f2b733; --m2:#2fd0bd; --m3:#ff7aa0; --m4:#9b94ff; --m5:#62b3ff;
     --danger:#ff6a52; --ok:#4ccf86; --ok-soft:#173d2e; --warm-soft:#3b3218;
     --chip:#8fa2ff; --chip-ink:#11152e; --bubble:#232a55;
@@ -35,7 +35,7 @@
 :root[data-theme="dark"]{
   --bg:#11152e; --panel:#1a1f40; --ink:#eef0fb; --muted:#a2a9cc; --line:#2e3566;
   --si:#262c52; --si-grid:#363e6e; --si-edge:#1c2146;
-  --oxide:#c46aab; --navy:#8fa2ff; --navy-soft:#262f63;
+  --oxide:#e48fcb; --oxide-ink:#2a0a20; --oxide-deep:#9a4a80; --navy:#8fa2ff; --navy-soft:#262f63;
   --m1:#f2b733; --m2:#2fd0bd; --m3:#ff7aa0; --m4:#9b94ff; --m5:#62b3ff;
   --danger:#ff6a52; --ok:#4ccf86; --ok-soft:#173d2e; --warm-soft:#3b3218;
   --chip:#8fa2ff; --chip-ink:#11152e; --bubble:#232a55;
@@ -145,8 +145,14 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 .btn{font:inherit;font-size:16px;font-weight:700;border-radius:12px;padding:10px 18px;cursor:pointer;border:1.5px solid var(--navy);background:var(--navy);color:var(--chip-ink);text-decoration:none;display:inline-flex;align-items:center;gap:8px}
 .btn.big{font-size:18px;padding:12px 24px;border-radius:14px}
 .btn.ghost{background:transparent;color:var(--navy)}
-.btn.oxide{border-color:var(--oxide);background:transparent;color:var(--ink);justify-content:center}
-.btn.oxide::before{content:"";width:22px;height:10px;border-radius:3px;background:var(--oxide);opacity:.7}
+.btn.oxide{background:var(--oxide);border-color:var(--oxide);color:var(--oxide-ink);font-size:17px;font-weight:900;justify-content:center;gap:10px;box-shadow:0 4px 0 var(--oxide-deep);transition:transform .08s,box-shadow .08s}
+.btn.oxide::before{content:"+";display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:50%;background:var(--oxide-ink);color:var(--oxide);font-size:24px;font-weight:900;line-height:1}
+.btn.oxide:hover:not(:disabled){filter:brightness(1.06)}
+.btn.oxide:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--oxide-deep)}
+.btn.oxide:disabled{box-shadow:none}
+@keyframes nudge{0%,100%{outline:3px solid transparent;outline-offset:2px}50%{outline:4px solid var(--oxide);outline-offset:6px}}
+.btn.oxide.nudge{animation:nudge 1.3s ease-in-out infinite}
+.hud .btn.oxide{margin-left:auto;padding:8px 16px;font-size:16px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn:focus-visible,.opt:focus-visible,.layerTab:focus-visible,.cardBtn:focus-visible,.lay:focus-visible,.iconBtn:focus-visible{outline:3px solid var(--m2);outline-offset:2px}
 .row{display:flex;flex-wrap:wrap;gap:8px}
@@ -206,7 +212,7 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 .zap{transform-box:fill-box;transform-origin:center;animation:zap .55s ease-out forwards}
 @keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
 .pop{animation:pop .35s ease-out}
-@media (prefers-reduced-motion: reduce){.pulse,.zap,.pop,.hand.go,.waitDots i{animation:none}.toast,.glow,.opt{transition:none}}
+@media (prefers-reduced-motion: reduce){.pulse,.zap,.pop,.hand.go,.waitDots i,.btn.oxide.nudge{animation:none}.toast,.glow,.opt{transition:none}}
 </style>
 </head>
 <body>
@@ -236,6 +242,7 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
         <span>已接好<span class="v" id="hDone">0/0</span></span>
         <span>導線總長<span class="v" id="hLen">0</span> 格</span>
         <span>用了<span class="v" id="hLayers">1</span> 層</span>
+        <button type="button" class="btn oxide" id="addTop" hidden></button>
       </div>
       <div class="msg"><span class="toast" id="toast" role="status" aria-live="polite"></span></div>
       <div class="boardBox"><svg id="board" role="img" aria-label="晶片俯視圖，按住電晶體拖曳來接導線"></svg></div>
@@ -415,7 +422,7 @@ const LV = {
     line:'電腦要縮小，板子也縮成 5×5 了。你把 A–B 和 C–D 都接接看，就知道我有多頭痛！想到辦法就告訴我。',
     done:s => ({ img:'noyce', text:'C–D 從 A–B 的上面跨過去，中間隔著不導電材料，所以不會短路。導線一樣最短，板子也不用變大。這就是立體電路！' }) },
   cross3:{ name:'晶片工廠 · 打賭關', W:5,H:5, nodes:{A:[1,0],B:[3,0],C:[4,2],D:[3,4],E:[1,4],F:[0,2]}, nets:[['A','D'],['B','E'],['C','F']], layers:'yes', who:'bot',
-    line:'來驗證我們的賭注！把 A–D、B–E、C–F 三條導線都接好。需要的話，就鋪一層不導電材料往上蓋。',
+    line:'來驗證我們的賭注！把 A–D、B–E、C–F 三條導線都接好。需要的話，就按粉紅色的「＋」按鈕，鋪一層不導電材料往上蓋。',
     done:s => { const win = A.q4a && A.q4a.pts > 0;
       return { img:'bot_happy', text:`${win ? '你贏了，猜得真準！' : `哈哈，這次我贏了！你猜 ${A.q4a ? A.q4a.ans : '?'}，`}最少要 3 層。三條導線每兩條都會交叉，所以每一條都要放在不同的層。${s.used > 3 ? `你用了 ${s.used} 層，其實 3 層就夠囉。` : ''}`, part:'m2' }; } },
   k33big:{ name:'彩蛋關 · 三井三屋', W:7,H:7, nodes:{A:[1,1],B:[3,1],C:[5,1],'1':[1,5],'2':[3,5],'3':[5,5]}, nets:K33, layers:'yes', who:'bot',
@@ -865,6 +872,7 @@ function startLevel(key){
   const lv = LV[key];
   S = { key, layers:[[]], cur:0, drawing:null, sparks:0, nodeAt:{}, finished:false, canSkip:false,
         allow: lv.layers === 'yes' || (lv.layers === 'gated' && !!(A.q3 && A.q3.solved)) };
+  S.nudge = lv.layers === 'yes';
   for (const [k,[x,y]] of Object.entries(lv.nodes)) S.nodeAt[y*lv.W + x] = k;
   $('cardView').hidden = true; $('cardView').innerHTML = ''; $('gameView').hidden = false;
   clearTimeout(skipTimer);
@@ -986,7 +994,11 @@ function tryStep(n){
   if (occupant(S.cur, n)){
     spark(n); sfx('zap'); S.sparks++; d.zapped = true;
     if (S.key === 'wall' && !bonusMode){ extra.sparksWall = (extra.sparksWall || 0) + 1; save(); }
-    toast('滋滋！短路了，同一層的導線不能碰在一起', true);
+    if (S.allow && S.layers.length < MAXL){
+      S.nudge = true;
+      toast('短路了！按粉紅色的「＋」按鈕，鋪一層不導電材料往上蓋', true);
+      renderHud(); renderLayers();
+    } else toast('滋滋！短路了，同一層的導線不能碰在一起', true);
     if (S.key === 'wall' && !S.allow && S.sparks === 2) setTimeout(openWallChoice, 500);
     return false;
   }
@@ -1057,7 +1069,7 @@ function renderLayers(){
     for (let k=S.layers.length-1;k>=0;k--)
       h += `<button type="button" class="layerTab ${k===S.cur?'on':''}" data-k="${k}"><span class="sw" style="background:${mc(k)}"></span>第 ${k+1} 層導線<span class="tag">M${k+1} · ${S.layers[k].length} 條</span></button>`;
     const n = S.layers.length;
-    h += `<button type="button" class="btn oxide" id="addL" ${n>=MAXL?'disabled':''}>${n>=MAXL?'最多蓋到第 5 層':`鋪一層不導電材料，蓋第 ${n+1} 層`}</button>`;
+    h += `<button type="button" class="btn oxide${S.nudge && n < MAXL ? ' nudge' : ''}" id="addL" ${n>=MAXL?'disabled':''}>${n>=MAXL?'最多蓋到第 5 層':`鋪一層不導電材料，蓋第 ${n+1} 層`}</button>`;
     if (n > 1 && !S.layers[n-1].length) h += `<button type="button" class="btn ghost" id="rmL">拆掉空的第 ${n} 層</button>`;
   } else {
     h += `<div class="layerTab on"><span class="sw" style="background:${mc(0)}"></span>第 1 層導線<span class="tag">M1 · ${S.layers[0].length} 條</span></div><p class="small" style="margin:4px 0 0">目前只能在這一層畫導線。</p>`;
@@ -1067,8 +1079,15 @@ function renderLayers(){
   const a = $('addL'); if (a) a.onclick = addLayer;
   const r = $('rmL'); if (r) r.onclick = () => { S.layers.pop(); S.cur = Math.min(S.cur, S.layers.length-1); renderAll(); };
 }
-function addLayer(){ if (S.layers.length >= MAXL) return; S.layers.push([]); S.cur = S.layers.length-1; sfx('tap'); toast(`鋪好不導電材料了，現在在第 ${S.cur+1} 層畫導線`); renderAll(); }
-function renderHud(){ const st = stats(); $('hDone').textContent = `${st.done}/${st.total}`; $('hLen').textContent = st.len; $('hLayers').textContent = st.used; }
+function addLayer(){ if (S.layers.length >= MAXL) return; S.nudge = false; S.layers.push([]); S.cur = S.layers.length-1; sfx('tap'); toast(`鋪好不導電材料了，現在在第 ${S.cur+1} 層畫導線`); renderAll(); }
+function renderHud(){
+  const st = stats(); $('hDone').textContent = `${st.done}/${st.total}`; $('hLen').textContent = st.len; $('hLayers').textContent = st.used;
+  const top = $('addTop'), n = S.layers.length;
+  top.hidden = !S.allow || n >= MAXL || S.finished;
+  top.textContent = `鋪不導電材料，蓋第 ${n + 1} 層`;
+  top.classList.toggle('nudge', !!S.nudge);
+}
+$('addTop').onclick = () => { if (S && S.allow) addLayer(); };
 function renderAll(){ renderMap(); renderTask(); renderNets(); renderLayers(); renderHud(); renderBoard(); $('iso').innerHTML = isoSVG(L(), S.layers, false); }
 
 function openWallChoice(){
