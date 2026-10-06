@@ -103,8 +103,13 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 .field input{font:inherit;font-size:20px;padding:10px 14px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
 .field input:focus{outline:none;border-color:var(--navy)}
 .field input[readonly]{opacity:.75}
-.fields{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,2fr);gap:0 12px}
-@media (max-width:620px){.fields{grid-template-columns:minmax(0,1fr)}}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 12px}
+.roomTag{display:inline-block;margin:0 0 4px;background:var(--navy-soft);border-radius:12px;padding:8px 16px;font-size:18px}
+.roomTag b{font-family:var(--f-mono);font-size:24px;letter-spacing:.15em;color:var(--navy)}
+.waitDots{display:flex;justify-content:center;gap:12px;margin:26px 0 10px}
+.waitDots i{width:16px;height:16px;border-radius:50%;background:var(--navy);animation:wd 1.2s ease-in-out infinite}
+.waitDots i:nth-child(2){animation-delay:.2s}.waitDots i:nth-child(3){animation-delay:.4s}
+@keyframes wd{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-10px);opacity:1}}
 .err{color:var(--danger);font-size:15px;margin-top:8px;min-height:1.5em}
 
 /* 遊戲區 */
@@ -201,7 +206,7 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 .zap{transform-box:fill-box;transform-origin:center;animation:zap .55s ease-out forwards}
 @keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
 .pop{animation:pop .35s ease-out}
-@media (prefers-reduced-motion: reduce){.pulse,.zap,.pop,.hand.go{animation:none}.toast,.glow,.opt{transition:none}}
+@media (prefers-reduced-motion: reduce){.pulse,.zap,.pop,.hand.go,.waitDots i{animation:none}.toast,.glow,.opt{transition:none}}
 </style>
 </head>
 <body>
@@ -258,6 +263,85 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 
 <script>
 (() => {
+/* ================= 即時房間核心（學生頁與老師頁共用） =================
+   正式：Firebase（匿名登入＋Firestore）。FIREBASE_CONFIG 由 build.py 填入。
+   測試：網址加 ?mock=1，只在同一個瀏覽器的分頁之間同步（localStorage＋BroadcastChannel）。 */
+const FIREBASE_CONFIG = {"apiKey": "AIzaSyDRp37denZjOkq9yxuIAQogPTfB07OGaN0", "authDomain": "chip-ep4.firebaseapp.com", "projectId": "chip-ep4", "storageBucket": "chip-ep4.firebasestorage.app", "messagingSenderId": "459946437624", "appId": "1:459946437624:web:6649b1d428fdfbe1ef440d"};
+const FB_VER = '11.10.0';
+const LIVE_MOCK = /[?&]mock=1(&|$)/.test(location.search);
+const LIVE_ENABLED = LIVE_MOCK || !!FIREBASE_CONFIG;
+const ROOM_TTL = 12 * 3600 * 1000;   // 房間 12 小時後可以被新的一場重複使用
+
+function liveBackend(){
+  if (!liveBackend.p) liveBackend.p = LIVE_MOCK ? mockBackend() : firebaseBackend();
+  return liveBackend.p;
+}
+
+async function firebaseBackend(){
+  const base = `https://www.gstatic.com/firebasejs/${FB_VER}/`;
+  const [App, Au, F] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+  const app = App.initializeApp(FIREBASE_CONFIG);
+  const auth = Au.getAuth(app);
+  const db = F.getFirestore(app);
+  await new Promise(res => { const off = Au.onAuthStateChanged(auth, () => { off(); res(); }); });
+  const roomRef = pin => F.doc(db, 'rooms', pin);
+  const playerRef = (pin, uid) => F.doc(db, 'rooms', pin, 'players', uid);
+  return {
+    kind: 'firebase',
+    async uid(){ if (!auth.currentUser) await Au.signInAnonymously(auth); return auth.currentUser.uid; },
+    async newIdentity(){ await Au.signOut(auth); await Au.signInAnonymously(auth); return auth.currentUser.uid; },
+    async roomGet(pin){ const s = await F.getDoc(roomRef(pin)); return s.exists() ? s.data() : null; },
+    async roomCreate(pin, data){
+      try {
+        await F.runTransaction(db, async tx => {
+          const s = await tx.get(roomRef(pin));
+          if (s.exists() && s.data().createdAt > Date.now() - ROOM_TTL) throw new Error('taken');
+          tx.set(roomRef(pin), data);
+        });
+        return true;
+      } catch(e){ return false; }
+    },
+    roomUpdate(pin, patch){ return F.updateDoc(roomRef(pin), patch); },
+    roomWatch(pin, cb){ return F.onSnapshot(roomRef(pin), s => cb(s.exists() ? s.data() : null), e => cb(undefined, e)); },
+    playerSet(pin, uid, data){ return F.setDoc(playerRef(pin, uid), data, { merge:true }); },
+    playerWatch(pin, uid, cb){ return F.onSnapshot(playerRef(pin, uid), s => cb(s.exists() ? s.data() : null), e => cb(undefined, e)); },
+    playersWatch(pin, cb){ return F.onSnapshot(F.collection(db, 'rooms', pin, 'players'), qs => cb(qs.docs.map(d => Object.assign({ id:d.id }, d.data()))), e => cb(undefined, e)); },
+    playerDelete(pin, uid){ return F.deleteDoc(playerRef(pin, uid)); },
+    roomDelete(pin){ return F.deleteDoc(roomRef(pin)); },
+  };
+}
+
+async function mockBackend(){
+  const KEY = 'wm-mockdb', chan = ('BroadcastChannel' in window) ? new BroadcastChannel(KEY) : null;
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { rooms:{} }; } catch(e){ return { rooms:{} }; } };
+  const subs = new Set();
+  const fire = () => subs.forEach(f => f());
+  const write = fn => { const d = load(); fn(d); localStorage.setItem(KEY, JSON.stringify(d)); if (chan) chan.postMessage(1); setTimeout(fire, 0); };
+  if (chan) chan.onmessage = fire;
+  window.addEventListener('storage', e => { if (e.key === KEY) fire(); });
+  const watch = fn => { subs.add(fn); setTimeout(fn, 0); return () => subs.delete(fn); };
+  const newId = () => { const id = 'u' + Math.random().toString(36).slice(2, 10); sessionStorage.setItem('wm-mock-uid', id); return id; };
+  return {
+    kind: 'mock',
+    async uid(){ return sessionStorage.getItem('wm-mock-uid') || newId(); },
+    async newIdentity(){ return newId(); },
+    async roomGet(pin){ const r = load().rooms[pin]; return r ? r.data : null; },
+    async roomCreate(pin, data){
+      const r = load().rooms[pin];
+      if (r && r.data.createdAt > Date.now() - ROOM_TTL) return false;
+      write(d => { d.rooms[pin] = { data, players:{} }; });
+      return true;
+    },
+    async roomUpdate(pin, patch){ write(d => { Object.assign(d.rooms[pin].data, patch); }); },
+    roomWatch(pin, cb){ let last; return watch(() => { const r = load().rooms[pin]; const j = JSON.stringify(r ? r.data : null); if (j !== last){ last = j; cb(r ? r.data : null); } }); },
+    async playerSet(pin, uid, data){ write(d => { const r = d.rooms[pin]; r.players[uid] = Object.assign(r.players[uid] || {}, data); }); },
+    playerWatch(pin, uid, cb){ let last; return watch(() => { const r = load().rooms[pin]; const p = r ? r.players[uid] || null : null; const j = JSON.stringify(p); if (j !== last){ last = j; cb(p); } }); },
+    playersWatch(pin, cb){ let last; return watch(() => { const r = load().rooms[pin]; const list = r ? Object.entries(r.players).map(([id, v]) => Object.assign({ id }, v)) : []; const j = JSON.stringify(list); if (j !== last){ last = j; cb(list); } }); },
+    async playerDelete(pin, uid){ write(d => { delete d.rooms[pin].players[uid]; }); },
+    async roomDelete(pin){ write(d => { delete d.rooms[pin]; }); },
+  };
+}
+
 const VERSION = 'v3-story';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -405,8 +489,8 @@ const STEPS = [
   {t:'result', s:7},
 ];
 
-function save(){ if (P) store.set(PKEY, {P, A, extra}); }
-const whoText = p => [p.cls, p.seat ? p.seat + ' 號' : '', p.name].filter(Boolean).map(esc).join(' · ');
+function save(){ if (P) store.set(PKEY, {P, A, extra}); liveReport(); }
+const whoText = p => [p.room ? '房間 ' + p.room : '', p.cls, p.seat ? p.seat + ' 號' : '', p.name].filter(Boolean).map(esc).join(' · ');
 function go(step){ P.step = step; save(); renderStep(); window.scrollTo(0,0); }
 function next(){ go(P.step + 1); }
 
@@ -431,13 +515,19 @@ function renderStep(){
 }
 
 /* ---------- 開場 ---------- */
-function renderStart(){
+function renderStart(roomArg){
   P = null; bonusMode = false; renderMap();
+  liveOffs.forEach(f => f()); liveOffs = [];
   const saved = store.get(PKEY, null);
+  const urlRoom = /^\d{4}$/.test(params.room || '') ? params.room : '';
+  const room = LIVE_ENABLED ? (roomArg || urlRoom) : '';
   let resume = '';
   if (saved && saved.P && saved.P.step > 0 && STEPS[saved.P.step] && STEPS[saved.P.step].t !== 'result')
     resume = `<div class="react">${talk('bot', `咦？${esc(saved.P.name)}，你上次走到「${STOPS[STEPS[saved.P.step].s] || '終點'}」就斷線了。要接著走嗎？`, 'hmm', true)}
       <div class="actions"><button class="btn" type="button" id="resume">接著走</button><button class="btn ghost" type="button" id="discard">不是我，重新開始</button></div></div>`;
+  const roomField = !LIVE_ENABLED ? '' : room
+    ? `<p class="roomTag">要加入的房間：<b>${esc(room)}</b></p>`
+    : `<div class="field"><label for="fRoom">房間代碼（老師有給才填）</label><input id="fRoom" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 位數字"></div>`;
   showCard(`<div class="scene">
     <div class="place">2113 · 晶片研究室</div>
     <div class="sceneBody">
@@ -445,30 +535,130 @@ function renderStart(){
       ${resume}
       <form id="startForm" novalidate>
         <p class="ask">先登記你的工程師資料：</p>
+        ${room ? roomField : ''}
         <div class="fields">
           <div class="field"><label for="fCls">班級（選填）</label><input id="fCls" autocomplete="off" placeholder="六年三班"></div>
           <div class="field"><label for="fSeat">座號（選填）</label><input id="fSeat" inputmode="numeric" autocomplete="off" placeholder="12"></div>
-          <div class="field"><label for="fName">姓名</label><input id="fName" autocomplete="off" placeholder="你的名字"></div>
+          <div class="field"><label for="fName">姓名</label><input id="fName" autocomplete="off" maxlength="20" placeholder="你的名字"></div>
+          ${room ? '' : roomField}
         </div>
         <div class="err" id="fErr"></div>
-        <div class="actions" style="margin-top:4px"><button class="btn big" type="submit">穿越時空，出發！</button></div>
+        <div class="actions" style="margin-top:4px"><button class="btn big" type="submit" id="goBtn">${room ? '加入房間' : '穿越時空，出發！'}</button></div>
       </form>
     </div></div>`);
-  $('startForm').addEventListener('submit', e => {
+  $('startForm').addEventListener('submit', async e => {
     e.preventDefault();
     const cls = $('fCls').value.trim(), seat = $('fSeat').value.trim(), name = $('fName').value.trim();
+    const pin = room || ($('fRoom') ? $('fRoom').value.trim() : '');
     if (!name){ $('fErr').textContent = '寫下你的名字，晶片小八才認得你。'; return; }
     if (seat && !/^\d{1,3}$/.test(seat)){ $('fErr').textContent = '座號請填數字。'; return; }
-    sfx('gain');
-    P = { cls:cls.slice(0,40), seat, name:name.slice(0,20), step:0, t0:Date.now() };
-    A = {}; extra = { sparksWall:0, skipped:[], parts:[], tries:{} };
-    go(0);
+    if (pin && !/^\d{4}$/.test(pin)){ $('fErr').textContent = '房間代碼是 4 位數字。'; return; }
+    const fresh = () => { A = {}; extra = { sparksWall:0, skipped:[], parts:[], tries:{} }; };
+    if (!pin){
+      sfx('gain');
+      P = { cls:cls.slice(0,40), seat, name:name.slice(0,20), step:0, t0:Date.now() };
+      fresh(); go(0); return;
+    }
+    const btn = $('goBtn'); btn.disabled = true; btn.textContent = '連線中…'; $('fErr').textContent = '';
+    try {
+      const be = await liveBackend();
+      const uid = await be.uid();   // 先登入，安全規則要求登入後才能讀房間
+      const r = await be.roomGet(pin);
+      if (!r || r.createdAt < Date.now() - ROOM_TTL) throw new Error('找不到房間 ' + pin + '，請再確認一次代碼。');
+      if (r.status === 'ended') throw new Error('房間 ' + pin + ' 這一場已經結束了。');
+      await be.playerSet(pin, uid, { name:name.slice(0,20), cls:cls.slice(0,40), score:0, step:0, stop:0, parts:0, firstOk:0, done:false, joinedAt:Date.now(), updatedAt:Date.now() });
+      sfx('gain');
+      P = { cls:cls.slice(0,40), seat, name:name.slice(0,20), step:0, t0:Date.now(), room:pin, uid };
+      fresh(); store.set(PKEY, {P, A, extra}); liveLast = '';
+      liveAttach();
+      if (r.status === 'lobby') waitForStart(); else go(0);
+    } catch(err){
+      btn.disabled = false; btn.textContent = room ? '加入房間' : '穿越時空，出發！';
+      $('fErr').textContent = /找不到|結束/.test(err.message) ? err.message : '連不上房間，請檢查網路。也可以先不填房間代碼，自己玩。';
+    }
   });
   const r = $('resume');
   if (r){
-    r.onclick = () => { P = saved.P; A = saved.A || {}; extra = saved.extra || {sparksWall:0, skipped:[], parts:[], tries:{}}; renderStep(); };
-    $('discard').onclick = () => { store.del(PKEY); renderStart(); };
+    r.onclick = async () => {
+      P = saved.P; A = saved.A || {}; extra = saved.extra || {sparksWall:0, skipped:[], parts:[], tries:{}};
+      if (P.room && LIVE_ENABLED){ liveLast = ''; liveAttach(); }
+      renderStep(); liveReport();
+    };
+    $('discard').onclick = () => { store.del(PKEY); renderStart(room); };
   }
+}
+
+/* ---------- 即時房間（學生端） ---------- */
+let liveT = null, liveLast = '', liveOffs = [], liveClosed = false;   // liveClosed：老師已結束或刪除這一場，停止回報
+function liveScore(){
+  const st = STEPS[P.step];
+  const firstOk = ITEMS.filter(it => A[it.id] && A[it.id].pts === it.pts).length;
+  const passed = Math.min(P.step, STEPS.length - 1);
+  return { score: passed * 100 + firstOk * 100, firstOk, step:P.step, stop: st ? st.s : 7, parts:(extra.parts || []).length, done: !!st && st.t === 'result' };
+}
+function liveReport(){
+  if (!P || !P.room || !P.uid || bonusMode || !LIVE_ENABLED || liveClosed) return;
+  clearTimeout(liveT);
+  liveT = setTimeout(async () => {
+    if (!P || !P.room) return;
+    const s = liveScore(), j = JSON.stringify(s);
+    if (j === liveLast) return;
+    liveLast = j;
+    if (s.done && !P.finishedAt){ P.finishedAt = Date.now(); }
+    const data = Object.assign({ name:P.name, cls:P.cls || '', updatedAt:Date.now() }, s, P.finishedAt ? { finishedAt:P.finishedAt } : {});
+    try { await (await liveBackend()).playerSet(P.room, P.uid, data); } catch(e){ liveLast = ''; }
+  }, 250);
+}
+function liveAttach(){
+  liveOffs.forEach(f => f()); liveOffs = []; liveClosed = false;
+  const room = P.room, uid = P.uid;
+  liveBackend().then(async be => {
+    await be.uid();
+    let seen = false;
+    const off = be.playerWatch(room, uid, p => {
+      if (p) seen = true;
+      else if (p === null && seen && P && P.room === room && !liveClosed) liveKicked(room);   // 老師結束或刪除整場時不算被移出
+    });
+    liveOffs.push(off);
+    liveOffs.push(be.roomWatch(room, r => { if (r === null || (r && r.status === 'ended')){ liveClosed = true; clearTimeout(liveT); } }));
+  }).catch(() => {});
+}
+function waitForStart(){
+  closeOverlay();
+  showCard(`<div class="scene"><div class="place">房間 ${esc(P.room)} · 等待出發</div><div class="sceneBody">
+    ${talk('bot_happy', `${esc(P.name)}，你已經加入房間了！看看投影幕上有沒有你的名字。等老師按下開始，大家一起出發！`)}
+    <div class="waitDots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <p class="small" style="text-align:center">老師按下開始後，這個畫面會自動跳到第一關。</p></div></div>`);
+  $('map').hidden = true;
+  $('whoLine').innerHTML = whoText(P);
+  liveBackend().then(be => {
+    let off = null;
+    off = be.roomWatch(P.room, r => {
+      if (!P || !$('cardView').querySelector('.waitDots')) return;
+      if (r === null || (r && r.status === 'ended')){ if (off) off(); return liveCanceled(); }
+      if (r && r.status === 'playing' && STEPS[P.step] && P.step === 0){
+        if (off) off();
+        P.t0 = Date.now(); sfx('win'); go(0);
+      }
+    });
+    liveOffs.push(() => off && off());
+  });
+}
+function liveCanceled(){
+  const room = P.room;
+  liveOffs.forEach(f => f()); liveOffs = []; liveClosed = true;
+  showCard(`<div class="scene"><div class="place">房間 ${esc(room)}</div><div class="sceneBody">
+    ${talk('bot', '老師取消了這一場。你還是可以自己玩，一樣能收集零件、拿到工程師證！', 'hmm')}
+    <div class="actions"><button class="btn big" type="button" id="soloGo">自己玩</button></div></div></div>`);
+  $('soloGo').onclick = () => { P.room = null; P.uid = null; P.t0 = Date.now(); go(0); };
+}
+function liveKicked(room){
+  liveOffs.forEach(f => f()); liveOffs = [];
+  store.del(PKEY); P = null; closeOverlay(); renderMap();
+  showCard(`<div class="scene"><div class="place">房間 ${esc(room)}</div><div class="sceneBody">
+    ${talk('bot', '老師把你移出這個房間了，可能是名字需要修改。請重新輸入名字，再加入一次。', 'hmm')}
+    <div class="actions"><button class="btn big" type="button" id="rejoin">重新加入</button></div></div></div>`);
+  $('rejoin').onclick = async () => { try { await (await liveBackend()).newIdentity(); } catch(e){} renderStart(room); };
 }
 
 /* ---------- 對話場景 ---------- */
@@ -642,7 +832,12 @@ function renderResult(){
     </div>
   </div></div>`);
   document.querySelectorAll('[data-bonus]').forEach(b => b.onclick = () => { bonusMode = true; startLevel(b.dataset.bonus); });
-  $('nextKid').onclick = () => { store.del(PKEY); renderStart(); window.scrollTo(0,0); };
+  $('nextKid').onclick = async () => {
+    const room = P && P.room;
+    store.del(PKEY);
+    if (room){ liveOffs.forEach(f => f()); liveOffs = []; try { await (await liveBackend()).newIdentity(); } catch(e){} }
+    renderStart(room); window.scrollTo(0,0);
+  };
   store.del(PKEY);
 }
 
@@ -910,6 +1105,7 @@ $('undo').onclick = () => {
 $('reset').onclick = () => { if (S && !S.finished) startLevel(S.key); };
 
 /* ================= 啟動 ================= */
+try { new URLSearchParams(location.search).forEach((v, k) => { params[k] = v; }); } catch(e){}
 renderStart();
 })();
 </script>

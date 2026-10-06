@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="導線走線大師老師投影頁：開房間、即時排行榜、頒獎台。">
+<title>導線走線大師 · 老師投影</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Layout：投影幕舞台。深藍底，大字。大廳＝左 QR、右房間代碼與名單；排行榜＝上方狀態列＋每人一列的時空地圖進度；頒獎台＝三根柱子。只有一種深色外觀，方便投影。 */
+:root{
+  --bg:#10143a; --bg2:#1a2160; --panel:#1d2458; --line:#323b7e; --ink:#f3f4ff; --muted:#a7aedb;
+  --navy:#8fa2ff; --accent:#ffd166; --oxide:#e48fcb; --si:#c9cfe4; --chip:#2b3f8a;
+  --m1:#f2b733; --m2:#2fd0bd; --ok:#4ccf86; --danger:#ff6a52;
+  --gold:#ffcc3d; --silver:#cfd6e6; --bronze:#e0995e;
+  --f-display:"Chiron GoRound TC","Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;
+  --f-body:"Noto Sans TC","Microsoft JhengHei","PingFang TC",-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(1200px 700px at 80% -10%,var(--bg2),var(--bg));color:var(--ink);font-family:var(--f-body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+[hidden]{display:none!important}
+.wrap{min-height:100%;padding:clamp(16px,2.4vw,36px);display:flex;flex-direction:column;gap:clamp(14px,2vh,24px)}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px}
+.brand .eb{font-family:var(--f-mono);font-size:13px;letter-spacing:.16em;color:var(--muted)}
+.brand h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(26px,3vw,40px);letter-spacing:.06em}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font:inherit;font-weight:700;font-size:17px;border-radius:14px;padding:11px 20px;cursor:pointer;border:2px solid var(--navy);background:var(--navy);color:#10143a}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--navy)}
+.btn.huge{font-family:var(--f-display);font-size:clamp(26px,3vw,40px);padding:16px 48px;border-radius:20px;background:var(--accent);border-color:var(--accent);color:#10143a;letter-spacing:.08em}
+.btn.danger{border-color:var(--danger);color:var(--danger);background:transparent}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:focus-visible,.chipName:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.stat{display:flex;flex-direction:column;align-items:center;line-height:1.1;min-width:84px}
+.stat b{font-family:var(--f-mono);font-size:clamp(24px,2.6vw,36px);font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted);letter-spacing:.08em}
+.pinMini{font-family:var(--f-mono);font-weight:700;font-size:clamp(20px,2vw,28px);letter-spacing:.2em;color:var(--accent)}
+
+/* 首頁 */
+.home{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}
+.home img{width:150px;height:150px;border-radius:26px;object-fit:cover;border:4px solid var(--line)}
+.home p{margin:0;color:var(--muted);font-size:18px;max-width:40ch;line-height:1.7}
+.note{color:var(--muted);font-size:15px}
+.note.warn{color:var(--accent)}
+
+/* 大廳 */
+.lobby{flex:1;display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:clamp(18px,3vw,48px);align-items:start}
+@media (max-width:900px){.lobby{grid-template-columns:minmax(0,1fr)}}
+.qrCard{background:#fff;border-radius:24px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px;color:#10143a}
+.qrCard .qr img,.qrCard .qr canvas{width:min(34vh,340px)!important;height:auto!important}
+.qrCard .u{font-family:var(--f-mono);font-size:15px;text-align:center;word-break:break-all;max-width:340px}
+.pinBox .lab{font-size:clamp(18px,1.8vw,24px);color:var(--muted)}
+.pinBox .pin{font-family:var(--f-mono);font-weight:700;font-size:clamp(72px,11vw,150px);letter-spacing:.12em;line-height:1;color:var(--accent)}
+.pinBox .how{font-size:clamp(17px,1.6vw,22px);color:var(--ink);margin:10px 0 0;line-height:1.6}
+.joined{display:flex;align-items:baseline;gap:12px;margin:24px 0 12px;font-family:var(--f-display);font-size:clamp(22px,2.2vw,30px);font-weight:900}
+.joined b{font-family:var(--f-mono);font-size:1.4em;color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chipName{font:inherit;font-size:clamp(17px,1.6vw,22px);font-weight:700;color:var(--ink);background:var(--panel);border:2px solid var(--line);border-radius:999px;padding:8px 18px;cursor:pointer}
+.chipName.confirm{border-color:var(--danger);color:var(--danger)}
+.lobbyAct{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:26px}
+
+/* 排行榜 */
+.boardHead,.row{display:grid;grid-template-columns:64px minmax(0,1.3fr) minmax(0,2.6fr) 120px 110px;gap:14px;align-items:center}
+.boardHead{font-size:15px;color:var(--muted);letter-spacing:.04em;padding:0 16px}
+.stopsHead{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center}
+.stopsHead span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stopsHead em{display:none;font-style:normal;font-family:var(--f-mono);font-weight:700}
+.stopsHead b{font-weight:500}
+@media (max-width:1100px){.stopsHead em{display:inline}.stopsHead b{display:none}}
+.rows{position:relative;display:flex;flex-direction:column;gap:8px}
+.row{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:10px 16px;min-height:62px}
+.row .rk{font-family:var(--f-display);font-weight:900;font-size:28px;text-align:center;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--bg);margin:auto}
+.row:nth-child(1) .rk{background:var(--gold);color:#10143a}
+.row:nth-child(2) .rk{background:var(--silver);color:#10143a}
+.row:nth-child(3) .rk{background:var(--bronze);color:#10143a}
+.row .nm{font-family:var(--f-display);font-weight:900;font-size:clamp(20px,2vw,28px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.row .nm small{display:block;font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted)}
+.row .nm.confirm{color:var(--danger)}
+.track{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:center}
+.track i{height:12px;background:var(--line);position:relative}
+.track i:first-child{border-radius:6px 0 0 6px}.track i:last-child{border-radius:0 6px 6px 0}
+.track i.on{background:var(--ok)}
+.track i.now{background:var(--accent)}
+.track i.now::after{content:"";position:absolute;right:-9px;top:50%;width:22px;height:22px;margin-top:-11px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 6px rgba(255,209,102,.25)}
+.track.fin i{background:var(--ok)}
+.parts{display:flex;gap:4px}
+.parts span{width:18px;height:18px;border-radius:5px;border:2px dashed var(--line)}
+.parts span.got{border:none}
+.score{font-family:var(--f-mono);font-weight:700;font-size:clamp(24px,2.4vw,34px);text-align:right;font-variant-numeric:tabular-nums}
+.done{display:inline-block;font-size:12px;font-weight:700;color:#10143a;background:var(--ok);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+.rows.compact .row{min-height:44px;padding:6px 14px}
+.rows.compact .row .rk{width:34px;height:34px;font-size:20px}
+.rows.compact .row .nm{font-size:20px}
+.rows.compact .score{font-size:22px}
+.rows.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-flow:column;gap:8px 16px}
+.rows.two .row{grid-template-columns:40px minmax(0,1fr) minmax(0,1.6fr) 80px}
+.rows.two .parts{display:none}
+.boardHead.two{display:none}
+.empty{color:var(--muted);text-align:center;padding:40px;font-size:20px}
+.legend{font-size:14px;color:var(--muted)}
+
+/* 頒獎台 */
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:clamp(12px,2vw,28px);margin-top:10px;min-height:46vh}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(26vw,260px)}
+.col .who{font-family:var(--f-display);font-weight:900;font-size:clamp(22px,2.6vw,36px);text-align:center;opacity:0;transform:translateY(10px);transition:.5s}
+.col .pts{font-family:var(--f-mono);font-weight:700;font-size:clamp(18px,2vw,26px);color:var(--muted);opacity:0;transition:.5s}
+.col .bar{width:100%;border-radius:18px 18px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:14px;font-family:var(--f-display);font-weight:900;font-size:clamp(40px,5vw,72px);color:#10143a;height:0;transition:height 1s cubic-bezier(.2,.9,.3,1.2)}
+.col.p1 .bar{background:var(--gold)} .col.p2 .bar{background:var(--silver)} .col.p3 .bar{background:var(--bronze)}
+.col.show .who,.col.show .pts{opacity:1;transform:none}
+.rest{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:18px}
+.rest span{background:var(--panel);border-radius:12px;padding:6px 14px;font-size:17px}
+.rest span b{font-family:var(--f-mono);color:var(--muted);margin-right:8px}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:5}
+
+.overlay{position:fixed;inset:0;background:rgba(5,8,30,.72);display:flex;align-items:center;justify-content:center;z-index:10;padding:16px}
+@media (prefers-reduced-motion: reduce){.col .bar,.col .who,.col .pts{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app"></div>
+<canvas id="confetti" hidden></canvas>
+<div class="overlay" id="ov" hidden></div>
+
+<script>
+(() => {
+/* ================= 即時房間核心（學生頁與老師頁共用） =================
+   正式：Firebase（匿名登入＋Firestore）。FIREBASE_CONFIG 由 build.py 填入。
+   測試：網址加 ?mock=1，只在同一個瀏覽器的分頁之間同步（localStorage＋BroadcastChannel）。 */
+const FIREBASE_CONFIG = {"apiKey": "AIzaSyDRp37denZjOkq9yxuIAQogPTfB07OGaN0", "authDomain": "chip-ep4.firebaseapp.com", "projectId": "chip-ep4", "storageBucket": "chip-ep4.firebasestorage.app", "messagingSenderId": "459946437624", "appId": "1:459946437624:web:6649b1d428fdfbe1ef440d"};
+const FB_VER = '11.10.0';
+const LIVE_MOCK = /[?&]mock=1(&|$)/.test(location.search);
+const LIVE_ENABLED = LIVE_MOCK || !!FIREBASE_CONFIG;
+const ROOM_TTL = 12 * 3600 * 1000;   // 房間 12 小時後可以被新的一場重複使用
+
+function liveBackend(){
+  if (!liveBackend.p) liveBackend.p = LIVE_MOCK ? mockBackend() : firebaseBackend();
+  return liveBackend.p;
+}
+
+async function firebaseBackend(){
+  const base = `https://www.gstatic.com/firebasejs/${FB_VER}/`;
+  const [App, Au, F] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+  const app = App.initializeApp(FIREBASE_CONFIG);
+  const auth = Au.getAuth(app);
+  const db = F.getFirestore(app);
+  await new Promise(res => { const off = Au.onAuthStateChanged(auth, () => { off(); res(); }); });
+  const roomRef = pin => F.doc(db, 'rooms', pin);
+  const playerRef = (pin, uid) => F.doc(db, 'rooms', pin, 'players', uid);
+  return {
+    kind: 'firebase',
+    async uid(){ if (!auth.currentUser) await Au.signInAnonymously(auth); return auth.currentUser.uid; },
+    async newIdentity(){ await Au.signOut(auth); await Au.signInAnonymously(auth); return auth.currentUser.uid; },
+    async roomGet(pin){ const s = await F.getDoc(roomRef(pin)); return s.exists() ? s.data() : null; },
+    async roomCreate(pin, data){
+      try {
+        await F.runTransaction(db, async tx => {
+          const s = await tx.get(roomRef(pin));
+          if (s.exists() && s.data().createdAt > Date.now() - ROOM_TTL) throw new Error('taken');
+          tx.set(roomRef(pin), data);
+        });
+        return true;
+      } catch(e){ return false; }
+    },
+    roomUpdate(pin, patch){ return F.updateDoc(roomRef(pin), patch); },
+    roomWatch(pin, cb){ return F.onSnapshot(roomRef(pin), s => cb(s.exists() ? s.data() : null), e => cb(undefined, e)); },
+    playerSet(pin, uid, data){ return F.setDoc(playerRef(pin, uid), data, { merge:true }); },
+    playerWatch(pin, uid, cb){ return F.onSnapshot(playerRef(pin, uid), s => cb(s.exists() ? s.data() : null), e => cb(undefined, e)); },
+    playersWatch(pin, cb){ return F.onSnapshot(F.collection(db, 'rooms', pin, 'players'), qs => cb(qs.docs.map(d => Object.assign({ id:d.id }, d.data()))), e => cb(undefined, e)); },
+    playerDelete(pin, uid){ return F.deleteDoc(playerRef(pin, uid)); },
+    roomDelete(pin){ return F.deleteDoc(roomRef(pin)); },
+  };
+}
+
+async function mockBackend(){
+  const KEY = 'wm-mockdb', chan = ('BroadcastChannel' in window) ? new BroadcastChannel(KEY) : null;
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { rooms:{} }; } catch(e){ return { rooms:{} }; } };
+  const subs = new Set();
+  const fire = () => subs.forEach(f => f());
+  const write = fn => { const d = load(); fn(d); localStorage.setItem(KEY, JSON.stringify(d)); if (chan) chan.postMessage(1); setTimeout(fire, 0); };
+  if (chan) chan.onmessage = fire;
+  window.addEventListener('storage', e => { if (e.key === KEY) fire(); });
+  const watch = fn => { subs.add(fn); setTimeout(fn, 0); return () => subs.delete(fn); };
+  const newId = () => { const id = 'u' + Math.random().toString(36).slice(2, 10); sessionStorage.setItem('wm-mock-uid', id); return id; };
+  return {
+    kind: 'mock',
+    async uid(){ return sessionStorage.getItem('wm-mock-uid') || newId(); },
+    async newIdentity(){ return newId(); },
+    async roomGet(pin){ const r = load().rooms[pin]; return r ? r.data : null; },
+    async roomCreate(pin, data){
+      const r = load().rooms[pin];
+      if (r && r.data.createdAt > Date.now() - ROOM_TTL) return false;
+      write(d => { d.rooms[pin] = { data, players:{} }; });
+      return true;
+    },
+    async roomUpdate(pin, patch){ write(d => { Object.assign(d.rooms[pin].data, patch); }); },
+    roomWatch(pin, cb){ let last; return watch(() => { const r = load().rooms[pin]; const j = JSON.stringify(r ? r.data : null); if (j !== last){ last = j; cb(r ? r.data : null); } }); },
+    async playerSet(pin, uid, data){ write(d => { const r = d.rooms[pin]; r.players[uid] = Object.assign(r.players[uid] || {}, data); }); },
+    playerWatch(pin, uid, cb){ let last; return watch(() => { const r = load().rooms[pin]; const p = r ? r.players[uid] || null : null; const j = JSON.stringify(p); if (j !== last){ last = j; cb(p); } }); },
+    playersWatch(pin, cb){ let last; return watch(() => { const r = load().rooms[pin]; const list = r ? Object.entries(r.players).map(([id, v]) => Object.assign({ id }, v)) : []; const j = JSON.stringify(list); if (j !== last){ last = j; cb(list); } }); },
+    async playerDelete(pin, uid){ write(d => { delete d.rooms[pin].players[uid]; }); },
+    async roomDelete(pin){ write(d => { delete d.rooms[pin]; }); },
+  };
+}
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+const BOT = 'data:image/jpeg;base64,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';
+const STOPS = ['訓練場','1958 基爾比','1959 走廊','諾伊斯辦公室','晶片工廠','晶片展示間','晶片研究室'];
+const PART_COLORS = ['var(--si)','var(--m1)','var(--oxide)','var(--m2)','var(--oxide)'];
+const HKEY = 'wm-host-room';
+const mockQ = LIVE_MOCK ? 'mock=1' : '';
+const studentBase = () => location.origin + location.pathname.replace(/teacher\.html$/, '');
+const studentUrl = pin => studentBase() + '?room=' + pin + (mockQ ? '&' + mockQ : '');
+
+let be = null, uid = null, pin = null, room = null, players = [], view = 'home';
+let offRoom = null, offPlayers = null, timer = null;
+const reached = {};
+let frozen = null;   // 按下結束時的名次，頒獎台用這份，不再變動   // 老師這台看到某人分數上升的時間，用來決定同分名次
+
+/* ---------- 共用頂列 ---------- */
+function topBar(right){
+  return `<div class="top"><div class="brand"><div class="eb">晶片系列 EP4 · 時空任務 · 老師投影</div><h1>導線走線大師</h1></div><div class="tools">${right || ''}<button class="btn ghost" type="button" data-fs>全螢幕</button></div></div>`;
+}
+function bindTop(){
+  document.querySelectorAll('[data-fs]').forEach(b => b.onclick = () => {
+    try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch(e){}
+  });
+}
+
+/* ---------- 首頁 ---------- */
+function renderHome(msg){
+  view = 'home'; stopWatch();
+  const last = store.get(HKEY, null);
+  const canResume = last && last.createdAt > Date.now() - ROOM_TTL;
+  $('app').innerHTML = topBar() + `<div class="home">
+    <img src="${BOT}" alt="晶片小八">
+    <p>開一場即時挑戰：學生用平板掃 QR code 加入，投影幕上即時顯示每個人走到哪一站、收集了幾個零件。</p>
+    ${LIVE_ENABLED ? '' : '<p class="note warn">即時排行還沒有連上資料庫（Firebase 尚未設定），目前無法開房間。</p>'}
+    <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center">
+      <button class="btn huge" type="button" id="newRoom" ${LIVE_ENABLED ? '' : 'disabled'}>開新的一場</button>
+      ${canResume && LIVE_ENABLED ? `<button class="btn ghost" type="button" id="resumeRoom">回到房間 ${esc(last.pin)}</button>` : ''}
+    </div>
+    <p class="note" id="homeMsg">${esc(msg || '')}</p>
+  </div>`;
+  bindTop();
+  const n = $('newRoom'); if (n) n.onclick = createRoom;
+  const r = $('resumeRoom'); if (r) r.onclick = () => openRoom(last.pin);
+}
+
+async function ensureBackend(){
+  if (!be){ be = await liveBackend(); uid = await be.uid(); }
+}
+async function createRoom(){
+  const b = $('newRoom'); b.disabled = true; b.textContent = '準備中…';
+  try {
+    await ensureBackend();
+    for (let i = 0; i < 25; i++){
+      const p = String(1000 + Math.floor(Math.random() * 9000));
+      const now = Date.now();
+      if (await be.roomCreate(p, { host:uid, status:'lobby', createdAt:now, startedAt:0, endedAt:0 })){
+        store.set(HKEY, { pin:p, createdAt:now });
+        return openRoom(p);
+      }
+    }
+    throw new Error('busy');
+  } catch(e){
+    renderHome('開房間失敗，請檢查網路後再試一次。');
+  }
+}
+async function openRoom(p){
+  try { await ensureBackend(); } catch(e){ return renderHome('連不上資料庫，請檢查網路。'); }
+  pin = p; stopWatch();
+  offRoom = be.roomWatch(pin, r => {
+    if (r === undefined) return;
+    if (!r || r.host !== uid){ store.del(HKEY); return renderHome('這個房間已經不存在了。'); }
+    const prev = room ? room.status : null; room = r;
+    if (r.status === 'lobby' && view !== 'lobby') renderLobby();
+    else if (r.status === 'playing' && view !== 'board') renderBoard();
+    else if (r.status === 'ended' && prev !== 'ended' && view !== 'podium') renderPodium();
+    else refresh();
+  });
+  offPlayers = be.playersWatch(pin, list => {
+    if (!list) return;
+    const since = room ? room.createdAt : 0;
+    players = list.filter(p => (p.joinedAt || 0) >= since - 60000);
+    const now = Date.now();
+    players.forEach(p => { const r = reached[p.id]; if (!r || p.score > r.score) reached[p.id] = { score:p.score, at: r && p.score <= r.score ? r.at : now }; });
+    refresh();
+  });
+}
+function stopWatch(){ if (offRoom) offRoom(); if (offPlayers) offPlayers(); offRoom = offPlayers = null; clearInterval(timer); timer = null; }
+function refresh(){ if (view === 'lobby') drawLobbyList(); else if (view === 'board') drawBoard(); else if (view === 'podium' && (!frozen || !frozen.length) && players.length) drawPodium(true); }
+
+/* ---------- 移出學生（點兩下） ---------- */
+let armed = null;
+function askRemove(el, id, name){
+  if (armed !== id){
+    armed = id; el.classList.add('confirm'); const old = el.innerHTML; el.textContent = `移出 ${name}？再點一次`;
+    setTimeout(() => { if (armed === id){ armed = null; refresh(); } }, 3000);
+    return;
+  }
+  armed = null; be.playerDelete(pin, id).catch(() => {});
+}
+
+/* ---------- 大廳 ---------- */
+function renderLobby(){
+  view = 'lobby';
+  $('app').innerHTML = topBar(`<button class="btn ghost" type="button" id="endEarly">取消這一場</button>`) + `<div class="lobby">
+    <div class="qrCard"><div class="qr" id="qr"></div><div class="u">${esc(studentUrl(pin).replace(/^https?:\/\//, ''))}</div></div>
+    <div>
+      <div class="pinBox"><div class="lab">房間代碼</div><div class="pin">${esc(pin)}</div>
+        <p class="how">用平板掃左邊的 QR code 加入。<br>或打開 <b>${esc(studentBase().replace(/^https?:\/\//, ''))}</b>，輸入房間代碼。</p></div>
+      <div class="joined">已加入 <b id="joinN">0</b> 人</div>
+      <div class="chips" id="chips"></div>
+      <p class="legend" style="margin-top:10px">名字不恰當的話，點兩下那個名字就能把他移出房間。</p>
+      <div class="lobbyAct"><button class="btn huge" type="button" id="startBtn">開始！</button></div>
+    </div></div>`;
+  bindTop();
+  if (window.QRCode) new QRCode($('qr'), { text:studentUrl(pin), width:340, height:340, correctLevel:QRCode.CorrectLevel.M });
+  $('startBtn').onclick = () => { $('startBtn').disabled = true; be.roomUpdate(pin, { status:'playing', startedAt:Date.now() }).catch(() => { $('startBtn').disabled = false; }); };
+  $('endEarly').onclick = () => closeRoom(true, '已取消這一場，資料已刪除。');
+  drawLobbyList();
+}
+function drawLobbyList(){
+  const box = $('chips'); if (!box) return;
+  $('joinN').textContent = players.length;
+  const sorted = players.slice().sort((a,b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+  box.innerHTML = sorted.length ? sorted.map(p => `<button type="button" class="chipName" data-id="${esc(p.id)}">${esc(p.name)}</button>`).join('') : '<span class="note">等待學生加入…</span>';
+  box.querySelectorAll('.chipName').forEach(b => b.onclick = () => { const p = players.find(x => x.id === b.dataset.id); if (p) askRemove(b, p.id, p.name); });
+}
+
+/* ---------- 排行榜 ---------- */
+function ranked(){
+  return players.slice().sort((a,b) =>
+    (b.score || 0) - (a.score || 0) ||
+    ((reached[a.id] || {}).at || 0) - ((reached[b.id] || {}).at || 0) ||
+    String(a.name).localeCompare(String(b.name), 'zh-Hant'));
+}
+function renderBoard(){
+  view = 'board';
+  $('app').innerHTML = topBar(`
+    <div class="stat"><span>房間</span><b class="pinMini">${esc(pin)}</b></div>
+    <div class="stat"><span>人數</span><b id="sN">0</b></div>
+    <div class="stat"><span>完成</span><b id="sD">0</b></div>
+    <div class="stat"><span>時間</span><b id="sT">00:00</b></div>
+    <button class="btn ghost" type="button" id="showQr">讓更多人加入</button>
+    <button class="btn" type="button" id="endBtn">結束並頒獎</button>`) + `
+    <div class="boardHead" id="bh"><span>名次</span><span>工程師</span><div class="stopsHead">${STOPS.map((s, i) => `<span><em>${i + 1}</em><b>${s}</b></span>`).join('')}</div><span>零件</span><span style="text-align:right">分數</span></div>
+    <div class="rows" id="rows"></div>
+    <p class="legend">分數：每通過一關 +100，一次就答對的任務再 +100。同分時，先到的排前面。點兩下名字可以移出房間。</p>`;
+  bindTop();
+  $('endBtn').onclick = () => { $('endBtn').disabled = true; be.roomUpdate(pin, { status:'ended', endedAt:Date.now() }).catch(() => { $('endBtn').disabled = false; }); };
+  $('showQr').onclick = showQrOverlay;
+  clearInterval(timer);
+  const tick = () => { const end = room && room.status === 'ended' && room.endedAt ? room.endedAt : Date.now(); const t = room && room.startedAt ? Math.max(0, Math.floor((end - room.startedAt) / 1000)) : 0; const el = $('sT'); if (el) el.textContent = String(Math.floor(t/60)).padStart(2,'0') + ':' + String(t%60).padStart(2,'0'); };
+  tick(); timer = setInterval(tick, 1000);
+  drawBoard();
+}
+function rowHTML(p, i){
+  const stop = Math.max(0, Math.min(7, p.stop || 0));
+  const track = STOPS.map((_, k) => `<i class="${p.done ? 'on' : k < stop ? 'on' : k === stop ? 'now' : ''}"></i>`).join('');
+  const parts = PART_COLORS.map((c, k) => k < (p.parts || 0) ? `<span class="got" style="background:${c}"></span>` : '<span></span>').join('');
+  return `<div class="row" data-id="${esc(p.id)}"><div class="rk">${i + 1}</div>
+    <div class="nm" data-id="${esc(p.id)}">${esc(p.name)}${p.done ? '<span class="done">完成</span>' : ''}${p.cls ? `<small>${esc(p.cls)}</small>` : ''}</div>
+    <div class="track${p.done ? ' fin' : ''}">${track}</div><div class="parts">${parts}</div><div class="score">${p.score || 0}</div></div>`;
+}
+function drawBoard(){
+  const box = $('rows'); if (!box) return;
+  const list = ranked();
+  $('sN').textContent = list.length;
+  $('sD').textContent = list.filter(p => p.done).length;
+  // FLIP：記住舊位置
+  const before = {}; box.querySelectorAll('.row').forEach(r => { before[r.dataset.id] = r.getBoundingClientRect().top; });
+  box.className = 'rows' + (list.length > 16 ? ' two compact' : list.length > 10 ? ' compact' : '');
+  $('bh').className = 'boardHead' + (list.length > 16 ? ' two' : '');
+  if (list.length > 16) box.style.gridTemplateRows = `repeat(${Math.ceil(list.length / 2)}, auto)`; else box.style.gridTemplateRows = '';
+  box.innerHTML = list.length ? list.map(rowHTML).join('') : '<div class="empty">還沒有學生加入</div>';
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches){
+    box.querySelectorAll('.row').forEach(r => {
+      const old = before[r.dataset.id]; if (old == null) return;
+      const dy = old - r.getBoundingClientRect().top; if (!dy) return;
+      r.animate([{ transform:`translateY(${dy}px)` }, { transform:'translateY(0)' }], { duration:600, easing:'cubic-bezier(.2,.8,.2,1)' });
+    });
+  }
+  box.querySelectorAll('.nm').forEach(n => n.onclick = () => { const p = players.find(x => x.id === n.dataset.id); if (p) askRemove(n, p.id, p.name); });
+}
+function showQrOverlay(){
+  const ov = $('ov');
+  ov.innerHTML = `<div class="qrCard"><div class="pinBox" style="text-align:center"><div class="lab" style="color:#5a6286">房間代碼</div><div class="pin" style="font-size:72px">${esc(pin)}</div></div><div class="qr" id="qr2"></div><div class="u">${esc(studentUrl(pin).replace(/^https?:\/\//, ''))}</div><button class="btn" type="button" id="closeQr">關閉</button></div>`;
+  ov.hidden = false;
+  if (window.QRCode) new QRCode($('qr2'), { text:studentUrl(pin), width:300, height:300, correctLevel:QRCode.CorrectLevel.M });
+  $('closeQr').onclick = () => { ov.hidden = true; ov.innerHTML = ''; };
+}
+
+/* ---------- 頒獎台 ---------- */
+function renderPodium(){
+  view = 'podium'; clearInterval(timer); frozen = players.length ? ranked() : null;
+  $('app').innerHTML = topBar(`<button class="btn ghost" type="button" id="backBoard">看完整排行</button><button class="btn ghost" type="button" id="again">開新的一場</button><button class="btn danger" type="button" id="wipe">刪除這場的資料</button>`) + `
+    <div style="text-align:center;font-family:var(--f-display);font-weight:900;font-size:clamp(30px,4vw,54px);letter-spacing:.08em">晶片工程師頒獎台</div>
+    <div class="podium" id="podium"></div><div class="rest" id="rest"></div>`;
+  bindTop();
+  $('backBoard').onclick = () => { frozen = null; renderBoard(); };
+  $('again').onclick = () => { store.del(HKEY); stopWatch(); renderHome(); };
+  $('wipe').onclick = () => closeRoom(true);
+  drawPodium(true);
+}
+function drawPodium(animate){
+  const box = $('podium'); if (!box) return;
+  if (!frozen || !frozen.length) frozen = players.length ? ranked() : null;
+  const list = frozen || [], top = list.slice(0, 3);
+  const order = [1, 0, 2], H = ['26vh', '36vh', '18vh'];
+  box.innerHTML = order.map(i => top[i] ? `<div class="col p${i + 1}" data-i="${i}"><div class="who">${esc(top[i].name)}</div><div class="pts">${top[i].score || 0} 分</div><div class="bar">${i + 1}</div></div>` : '').join('');
+  $('rest').innerHTML = list.slice(3).map((p, k) => `<span><b>${k + 4}</b>${esc(p.name)}</span>`).join('');
+  const cols = [...box.querySelectorAll('.col')];
+  const show = col => { col.querySelector('.bar').style.height = H[+col.dataset.i === 0 ? 1 : +col.dataset.i === 1 ? 0 : 2]; col.classList.add('show'); };
+  if (!animate){ cols.forEach(show); return; }
+  const seq = [2, 1, 0];
+  seq.forEach((rank, n) => setTimeout(() => { const c = cols.find(x => +x.dataset.i === rank); if (c) show(c); if (rank === 0) confetti(); }, 500 + n * 1100));
+}
+function confetti(){
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv = $('confetti'); cv.hidden = false; cv.width = innerWidth; cv.height = innerHeight;
+  const g = cv.getContext('2d'), cols = ['#ffd166','#2fd0bd','#e48fcb','#8fa2ff','#f2b733','#ffffff'];
+  const ps = Array.from({ length:180 }, () => ({ x:Math.random() * cv.width, y:-20 - Math.random() * cv.height * .5, vx:(Math.random() - .5) * 3, vy:2 + Math.random() * 4, r:Math.random() * Math.PI, w:6 + Math.random() * 8, c:cols[Math.floor(Math.random() * cols.length)] }));
+  const t0 = performance.now();
+  const step = t => {
+    g.clearRect(0, 0, cv.width, cv.height);
+    ps.forEach(p => { p.x += p.vx; p.y += p.vy; p.r += .1; g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c; g.fillRect(-p.w/2, -p.w/4, p.w, p.w/2); g.restore(); });
+    if (t - t0 < 4500) requestAnimationFrame(step); else { g.clearRect(0, 0, cv.width, cv.height); cv.hidden = true; }
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- 關閉房間 ---------- */
+async function closeRoom(wipe, msg){
+  const p = pin;
+  stopWatch(); store.del(HKEY);
+  try {
+    if (wipe){ for (const pl of players) await be.playerDelete(p, pl.id); await be.roomDelete(p); }
+    else await be.roomUpdate(p, { status:'ended', endedAt:Date.now() });
+  } catch(e){}
+  room = null; players = []; pin = null;
+  renderHome(msg || (wipe ? '這一場的資料已經刪除。' : '已取消這一場。'));
+}
+
+renderHome();
+})();
+</script>
+
+</body>
+</html>

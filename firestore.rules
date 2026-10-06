@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 一場比賽＝一個房間（4 位數代碼）。只有開房的老師能改狀態或刪除。
+    match /rooms/{pin} {
+      function roomOk(d) {
+        return d.keys().hasOnly(['host', 'status', 'createdAt', 'startedAt', 'endedAt'])
+          && d.host == request.auth.uid
+          && d.status in ['lobby', 'playing', 'ended']
+          && d.createdAt is int;
+      }
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && pin.matches('^[0-9]{4}$') && roomOk(request.resource.data);
+      // 開房老師可以更新；超過 12 小時的舊房間可以被新的一場重新使用
+      allow update: if request.auth != null && roomOk(request.resource.data)
+        && (resource.data.host == request.auth.uid
+            || resource.data.createdAt < request.time.toMillis() - 43200000);
+      allow delete: if request.auth != null && resource.data.host == request.auth.uid;
+
+      // 每位學生只能寫自己的那一筆；老師可以移出學生
+      match /players/{uid} {
+        allow read: if request.auth != null;
+        allow create, update: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['name', 'cls', 'score', 'step', 'stop', 'parts', 'firstOk', 'done', 'joinedAt', 'updatedAt', 'finishedAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 20
+          && request.resource.data.cls is string && request.resource.data.cls.size() <= 40
+          && request.resource.data.score is int
+          && request.resource.data.score >= 0 && request.resource.data.score <= 2000;
+        allow delete: if request.auth != null
+          && (request.auth.uid == uid
+              || get(/databases/$(database)/documents/rooms/$(pin)).data.host == request.auth.uid);
+      }
+    }
+  }
+}
