@@ -202,6 +202,13 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 .dialog{background:var(--panel);color:var(--ink);border-radius:22px;max-width:760px;width:100%;max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)}
 .dlgGrid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:center;margin-top:14px}
 @media (max-width:620px){.dlgGrid{grid-template-columns:minmax(0,1fr)}}
+.solGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-top:14px}
+.solFig{margin:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.solFig svg{width:100%;max-width:260px;height:auto}
+.solFig figcaption{font-size:14px;text-align:center;color:var(--muted);font-family:var(--f-mono)}
+.solFig figcaption b{font-family:var(--f-body)}
+.solIso{max-width:420px;margin:0 auto}
+.solIso svg{width:100%;height:auto;display:block}
 .stats{display:grid;grid-template-columns:auto auto;gap:2px 18px;font-size:14px;margin-top:10px;width:max-content;max-width:100%}
 .stats .h{color:var(--muted);font-size:12px}
 .stats .n{font-family:var(--f-mono);font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
@@ -426,11 +433,17 @@ const LV = {
     done:s => { const win = A.q4a && A.q4a.pts > 0;
       return { img:'bot_happy', text:`${win ? '你贏了，猜得真準！' : `哈哈，這次我贏了！你猜 ${A.q4a ? A.q4a.ans : '?'}，`}最少要 3 層。三條導線每兩條都會交叉，所以每一條都要放在不同的層。${s.used > 3 ? `你用了 ${s.used} 層，其實 3 層就夠囉。` : ''}`, part:'m2' }; } },
   k33big:{ name:'彩蛋關 · 三井三屋', W:7,H:7, nodes:{A:[1,1],B:[3,1],C:[5,1],'1':[1,5],'2':[3,5],'3':[5,5]}, nets:K33, layers:'yes', who:'bot',
-    line:'A、B、C 每一個都要接到 1、2、3，一共 9 條導線。這是給高手的彩蛋關！',
+    line:'這是有名的數學謎題「三井三屋」：三間屋子（A、B、C）都要各鋪一條路到三口井（1、2、3），一共 9 條，而且路不能交叉。在平面上這一定做不到，但晶片可以往上蓋！',
     done:s => ({ img:'bot_happy', text:`太強了！這 9 條線不管板子多大，一層一定接不起來。最少 2 層、最短 56 格，你用了 ${s.used} 層、${s.len} 格。` }) },
   k33small:{ name:'彩蛋關 · 再縮小一點', W:5,H:5, nodes:{A:[0,0],B:[2,0],C:[4,0],'1':[0,4],'2':[2,4],'3':[4,4]}, nets:K33, layers:'yes', who:'bot',
     line:'還是那 9 條導線，可是板子縮成 5×5 了。這次要蓋幾層呢？',
     done:s => ({ img:'bot_happy', text:`板子變小，兩層就不夠了，最少要 3 層、最短 52 格。你用了 ${s.used} 層、${s.len} 格！` }) },
+};
+
+/* 彩蛋關的最佳解答：[導線編號, 第幾層(0 起算), 經過的格子] */
+const SOLUTIONS = {
+  k33big:{ minL:2, len:56, sol:[[0,0,[8,15,22,29,36]],[1,0,[8,9,16,23,30,37,38]],[2,0,[8,1,2,3,4,5,6,13,20,27,34,41,40]],[3,1,[10,9,16,15,22,29,36]],[4,0,[10,17,24,31,38]],[5,0,[10,11,18,25,32,39,40]],[6,1,[12,11,18,17,24,23,30,37,36]],[7,1,[12,19,26,25,32,31,38]],[8,0,[12,19,26,33,40]]] },
+  k33small:{ minL:3, len:52, sol:[[0,0,[0,5,10,15,20]],[1,0,[0,1,6,11,16,21,22]],[2,1,[0,1,6,7,8,9,14,19,24]],[3,2,[2,1,6,5,10,15,20]],[4,0,[2,7,12,17,22]],[5,0,[2,3,8,13,18,23,24]],[6,2,[4,3,8,7,12,11,16,21,20]],[7,2,[4,9,14,13,18,17,22]],[8,0,[4,9,14,19,24]]] },
 };
 
 /* ================= 對話場景（每題第一次的選擇記成績） ================= */
@@ -834,6 +847,7 @@ function openVerify(draw){
 function total(){ return ITEMS.reduce((s,it) => s + (A[it.id] ? A[it.id].pts : 0), 0); }
 function title(sc){ return sc >= 90 ? '首席晶片工程師' : sc >= 70 ? '晶片工程師' : sc >= 50 ? '見習晶片工程師' : '晶片工程學徒'; }
 function renderResult(){
+  closeOverlay(); clearTimeout(peekTimer);
   bonusMode = false; renderMap();
   const sc = total(), firstOk = ITEMS.filter(it => A[it.id] && A[it.id].pts === it.pts).length;
   const recap = ITEMS.map(it => { const full = A[it.id] && A[it.id].pts === it.pts;
@@ -872,7 +886,7 @@ let S = null;
 const L = () => LV[S.key];
 const cellOf = (x,y) => y*L().W + x;
 const xy = c => [c % L().W, Math.floor(c / L().W)];
-let skipTimer = null;
+let skipTimer = null, peekTimer = null;
 
 function startLevel(key){
   const lv = LV[key];
@@ -883,6 +897,8 @@ function startLevel(key){
   $('cardView').hidden = true; $('cardView').innerHTML = ''; $('gameView').hidden = false;
   clearTimeout(skipTimer);
   if (!bonusMode && key !== 'practice') skipTimer = setTimeout(() => { if (S.key === key && !S.finished){ S.canSkip = true; renderTask(); } }, 150000);
+  clearTimeout(peekTimer);
+  if (bonusMode && SOLUTIONS[key]) peekTimer = setTimeout(() => { if (S.key === key && !S.finished){ S.canPeek = true; renderTask(); } }, 120000);
   closeOverlay(); renderAll(); window.scrollTo(0,0);
 }
 const netIndex = (a,b) => L().nets.findIndex(([p,q]) => (p===a&&q===b)||(p===b&&q===a));
@@ -1057,12 +1073,14 @@ function renderTask(){
   h += `<p class="how">按住電晶體，沿著格子拖到要接的電晶體再放開。點一下畫好的導線可以拆掉。</p>`;
   const acts = [];
   if (S.key === 'wall' && !S.allow && !bonusMode) acts.push(`<button class="btn" type="button" id="wallBtn">我想到辦法了！</button>`);
+  if (bonusMode && S.canPeek && !S.finished) acts.push(`<button class="btn" type="button" id="peekBtn">想不出來？看答案</button>`);
   if (bonusMode) acts.push(`<button class="btn ghost" type="button" id="backRes">回到工程師證</button>`);
   if (S.canSkip && !S.finished) acts.push(`<button class="btn ghost" type="button" id="skipBtn">卡住了，請晶片小八幫忙接好</button>`);
   if (acts.length) h += `<div class="actions" style="margin-top:12px">${acts.join('')}</div>`;
   $('task').innerHTML = h;
   const wb = $('wallBtn'); if (wb) wb.onclick = openWallChoice;
   const br = $('backRes'); if (br) br.onclick = renderResult;
+  const pk = $('peekBtn'); if (pk) pk.onclick = () => showSolution(S.key, null);
   const sk = $('skipBtn'); if (sk) sk.onclick = skipLevel;
 }
 function renderNets(){
@@ -1125,8 +1143,39 @@ function showLevelDone(){
         <div class="stats"><div class="h">導線層數</div><div class="h">導線總長</div><div class="n">${st.used} 層</div><div class="n">${st.len} 格</div></div></div>
       <div>${isoSVG(lv, S.layers, true)}</div>
     </div>
-    <div class="actions"><button class="btn big" type="button" id="dn">${bonusMode ? '回到工程師證' : '繼續前進'}</button></div></div>`);
+    <div class="actions">${bonusMode && SOLUTIONS[S.key] ? '<button class="btn big" type="button" id="seeSol">看最佳解答</button>' : ''}<button class="btn ${bonusMode && SOLUTIONS[S.key] ? 'ghost' : 'big'}" type="button" id="dn">${bonusMode ? '回到工程師證' : '繼續前進'}</button></div></div>`);
   $('dn').onclick = () => { if (bonusMode) renderResult(); else next(); };
+  const ss = $('seeSol'); if (ss) ss.onclick = () => showSolution(S.key, st);
+}
+
+function miniBoard(lv, ws, k){
+  const s = 44, W = lv.W, H = lv.H, c = cell => [(cell % W) * s + s/2, Math.floor(cell / W) * s + s/2];
+  let o = `<svg viewBox="-4 -4 ${W*s+8} ${H*s+8}" role="img" aria-label="第 ${k+1} 層導線">`;
+  o += `<rect x="-2" y="-2" width="${W*s+4}" height="${H*s+4}" rx="8" style="fill:var(--si);stroke:var(--si-edge);stroke-width:2"/>`;
+  for (let x = 1; x < W; x++) o += `<line x1="${x*s}" y1="0" x2="${x*s}" y2="${H*s}" style="stroke:var(--si-grid);stroke-width:1"/>`;
+  for (let y = 1; y < H; y++) o += `<line x1="0" y1="${y*s}" x2="${W*s}" y2="${y*s}" style="stroke:var(--si-grid);stroke-width:1"/>`;
+  ws.forEach(w => { o += `<polyline points="${w.path.map(q => c(q).join(',')).join(' ')}" fill="none" style="stroke:${mc(k)};stroke-width:12;stroke-linecap:round;stroke-linejoin:round"/>`; });
+  for (const [name, [x, y]] of Object.entries(lv.nodes)){
+    const cx = x*s + s/2, cy = y*s + s/2;
+    o += `<rect x="${cx-15}" y="${cy-15}" width="30" height="30" rx="6" style="fill:var(--chip)"/><text x="${cx}" y="${cy+1}" text-anchor="middle" dominant-baseline="middle" style="fill:var(--chip-ink);font:700 16px var(--f-mono)">${name}</text>`;
+  }
+  const names = ws.map(w => L2(lv, w.net)).join('、');
+  return `<figure class="solFig">${o}</svg><figcaption><b style="color:${mc(k)}">第 ${k+1} 層</b>（${ws.length} 條）<br>${names}</figcaption></figure>`;
+}
+const L2 = (lv, i) => lv.nets[i].join('–');
+function showSolution(key, mine){
+  const lv = LV[key], d = SOLUTIONS[key];
+  const layers = Array.from({ length:d.minL }, () => []);
+  d.sol.forEach(([i, k, path]) => layers[k].push({ net:i, path }));
+  const cmp = mine ? `你用了 ${mine.used} 層、${mine.len} 格。` : '';
+  openOverlay(`<div class="place">${lv.name} · 最佳解答</div><div class="sceneBody">
+    ${talk('bot_happy', `這是最省的接法：最少 ${d.minL} 層，導線加起來最短 ${d.len} 格。${cmp}一層一層看，同一層的導線都不會碰到，交錯的地方都分在不同層！`, 'ok', true)}
+    <div class="solGrid">${layers.map((ws, k) => miniBoard(lv, ws, k)).join('')}</div>
+    <p class="small" style="text-align:center;margin:10px 0 0">疊起來就是這樣：</p>
+    <div class="solIso">${isoSVG(lv, layers, true)}</div>
+    <div class="actions"><button class="btn big" type="button" id="solAgain">我也來試試</button><button class="btn ghost" type="button" id="solBack">回到工程師證</button></div></div>`);
+  $('solAgain').onclick = () => { closeOverlay(); startLevel(key); };
+  $('solBack').onclick = () => renderResult();
 }
 
 function openOverlay(html){ $('dialog').innerHTML = html; $('overlay').hidden = false; const b = $('dialog').querySelector('button'); if (b) b.focus(); }
