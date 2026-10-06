@@ -149,7 +149,8 @@ async function firebaseBackend(){
   const [App, Au, F] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
   const app = App.initializeApp(FIREBASE_CONFIG);
   const auth = Au.getAuth(app);
-  const db = F.getFirestore(app);
+  // 強制長輪詢：避免學校網路的代理伺服器或防毒軟體把即時推送暫存起來，造成延遲
+  const db = F.initializeFirestore(app, { experimentalForceLongPolling: true, experimentalLongPollingOptions: { timeoutSeconds: 10 } });
   await new Promise(res => { const off = Au.onAuthStateChanged(auth, () => { off(); res(); }); });
   const roomRef = pin => F.doc(db, 'rooms', pin);
   const playerRef = (pin, uid) => F.doc(db, 'rooms', pin, 'players', uid);

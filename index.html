@@ -282,7 +282,8 @@ async function firebaseBackend(){
   const [App, Au, F] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
   const app = App.initializeApp(FIREBASE_CONFIG);
   const auth = Au.getAuth(app);
-  const db = F.getFirestore(app);
+  // 強制長輪詢：避免學校網路的代理伺服器或防毒軟體把即時推送暫存起來，造成延遲
+  const db = F.initializeFirestore(app, { experimentalForceLongPolling: true, experimentalLongPollingOptions: { timeoutSeconds: 10 } });
   await new Promise(res => { const off = Au.onAuthStateChanged(auth, () => { off(); res(); }); });
   const roomRef = pin => F.doc(db, 'rooms', pin);
   const playerRef = (pin, uid) => F.doc(db, 'rooms', pin, 'players', uid);
@@ -631,18 +632,28 @@ function waitForStart(){
     <p class="small" style="text-align:center">老師按下開始後，這個畫面會自動跳到第一關。</p></div></div>`);
   $('map').hidden = true;
   $('whoLine').innerHTML = whoText(P);
-  liveBackend().then(be => {
-    let off = null;
-    off = be.roomWatch(P.room, r => {
-      if (!P || !$('cardView').querySelector('.waitDots')) return;
-      if (r === null || (r && r.status === 'ended')){ if (off) off(); return liveCanceled(); }
-      if (r && r.status === 'playing' && STEPS[P.step] && P.step === 0){
-        if (off) off();
-        P.t0 = Date.now(); sfx('win'); go(0);
-      }
-    });
-    liveOffs.push(() => off && off());
-  });
+  const room = P.room;
+  let done = false, off = null, lock = null;
+  const finish = () => {
+    if (done) return; done = true;
+    if (off) off(); clearInterval(poll);
+    document.removeEventListener('visibilitychange', onVis);
+    try { if (lock) lock.release(); } catch(e){}
+  };
+  const handle = r => {
+    if (done || r === undefined || !P || P.room !== room || !$('cardView').querySelector('.waitDots')) return;
+    if (r === null || r.status === 'ended'){ finish(); return liveCanceled(); }
+    if (r.status === 'playing' && P.step === 0){ finish(); P.t0 = Date.now(); sfx('win'); go(0); }
+  };
+  // 三道保險：即時推送、每 2 秒主動查一次、平板從休眠回來立刻查
+  const check = () => liveBackend().then(be => be.roomGet(room)).then(handle).catch(() => {});
+  const keepAwake = async () => { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') lock = await navigator.wakeLock.request('screen'); } catch(e){} };
+  const onVis = () => { if (document.visibilityState === 'visible'){ check(); keepAwake(); } };
+  const poll = setInterval(check, 2000);
+  document.addEventListener('visibilitychange', onVis);
+  keepAwake();
+  liveBackend().then(be => { if (!done) off = be.roomWatch(room, handle); });
+  liveOffs.push(finish);
 }
 function liveCanceled(){
   const room = P.room;
