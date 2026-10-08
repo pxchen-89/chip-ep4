@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="晶片系列 EP4 課堂活動：用兩位科學家的想法，親手設計出阿寶的晶片。原本的說明：解決難題，親手組裝一顆晶片。">
+<meta name="description" content="晶片系列 EP4 時空任務：跟著晶片小八回到 1958 年，幫科學家解決難題，親手組裝一顆晶片。">
 <title>導線走線大師</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-/* Layout：上方是進度列；中間是接導線關卡（左格子、右任務）或卡片畫面，窄螢幕上下疊放。背包已停用。 */
+/* Layout：時空任務。上方是時空地圖與背包；中間是角色對話場景或接導線關卡（左格子、右任務），窄螢幕上下疊放。 */
 :root{
   --bg:#e9edf5; --panel:#ffffff; --ink:#1b2142; --muted:#5a6286; --line:#d3d9e8;
   --si:#dfe3ec; --si-grid:#c4cadb; --si-edge:#b3bace;
@@ -227,7 +227,7 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 <div class="wrap">
   <header>
     <div class="brand">
-      <span class="eyebrow">晶片系列 EP4 · 晶片的誕生 · 課堂活動</span>
+      <span class="eyebrow">晶片系列 EP4 · 晶片的誕生 · 時空任務</span>
       <h1>導線走線大師</h1>
     </div>
     <div class="hdrR">
@@ -238,7 +238,7 @@ h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.
 
   <nav class="map" id="map" hidden aria-label="時空地圖">
     <div class="track" id="track"></div>
-    <div class="bag" id="bagBox" hidden><span>零件背包</span><div class="slots" id="bagSlots"></div></div>
+    <div class="bag"><span>零件背包</span><div class="slots" id="bagSlots"></div></div>
   </nav>
 
   <section id="cardView"></section>
@@ -400,7 +400,7 @@ $('sndBtn').onclick = () => { soundOn = !soundOn; store.set('wm-sound', soundOn)
 renderSnd();
 
 /* ================= 作答狀態 ================= */
-const PKEY = 'wire-master-progress-v3';
+const PKEY = 'wire-master-progress-v4';
 let P = null, A = {}, extra = {}, params = {}, bonusMode = false;
 
 /* ================= 零件 ================= */
@@ -426,9 +426,6 @@ function givePart(id){ extra.parts = extra.parts || []; if (!extra.parts.include
 /* ================= 關卡 ================= */
 const K33 = []; for (const a of 'ABC') for (const b of '123') K33.push([a,b]);
 const LV = {
-  chip:{ name:'阿寶的晶片', W:5,H:5, nodes:{A:[0,2],B:[4,2],C:[2,0],D:[2,4]}, nets:[['A','B'],['C','D']], layers:'yes', who:'bot',
-    line:'阿寶的晶片上已經做好四個電晶體。A 要接到 B、C 要接到 D，兩條導線不能碰在一起，碰到就短路了。按住一個點，沿著格子拖到另一個點就能接線。',
-    done:s => ({ img:'bot_happy', text:`接好了！C–D 從 A–B 的上面跨過去，中間隔著不導電材料，所以兩條線都走最短的路，也不會短路。你剛剛做出來的，就是一個立體的電路。` }) },
   practice:{ name:'訓練場', W:5,H:5, nodes:{A:[0,1],B:[4,1],C:[1,3],D:[4,4]}, nets:[['A','B'],['C','D']], layers:'no', who:'bot',
     line:'出發前先熱身！按住 A，沿著格子拖到 B 再放開。接好了再把 C 接到 D。',
     done:s => ({ img:'bot_happy', text:'很好，手感不錯！我們穿越到 1958 年吧，有位科學家正在煩惱。' }) },
@@ -442,9 +439,9 @@ const LV = {
     line:'來驗證我們的賭注！把 A–D、B–E、C–F 三條導線都接好。需要的話，就按粉紅色的「＋」按鈕，鋪一層不導電材料往上蓋。',
     done:s => { const win = A.q4a && A.q4a.pts > 0;
       return { img:'bot_happy', text:`${win ? '你贏了，猜得真準！' : `哈哈，這次我贏了！你猜 ${A.q4a ? A.q4a.ans : '?'}，`}最少要 3 層。三條導線每兩條都會交叉，所以每一條都要放在不同的層。${s.used > 3 ? `你用了 ${s.used} 層，其實 3 層就夠囉。` : ''}`, part:'m2' }; } },
-  k33big:{ name:'彩蛋關 · 三井三屋', W:7,H:7, nodes:{A:[1,1],B:[3,1],C:[5,1],'1':[1,5],'2':[3,5],'3':[5,5]}, nets:K33, layers:'yes', who:'bot',
-    line:'這是有名的數學謎題「三井三屋」：三間屋子（A、B、C）都要各鋪一條路到三口井（1、2、3），一共 9 條，而且路不能交叉。在平面上這一定做不到，但晶片可以往上蓋！',
-    done:s => ({ img:'bot_happy', text:`太強了！這 9 條線不管板子多大，一層一定接不起來。最少 2 層、最短 56 格，你用了 ${s.used} 層、${s.len} 格。` }) },
+  k33big:{ name:'晶片設計室 · 三井三屋', W:7,H:7, nodes:{A:[1,1],B:[3,1],C:[5,1],'1':[1,5],'2':[3,5],'3':[5,5]}, nets:K33, layers:'yes', who:'bot',
+    line:'設計室接到一張難搞的訂單，是有名的數學謎題「三井三屋」：三間屋子（A、B、C）都要各鋪一條路到三口井（1、2、3），一共 9 條，而且路不能交叉。在平面上這一定做不到，但晶片可以往上蓋！先想想哪幾條可以放在同一層。',
+    done:s => ({ img:'bot_happy', text:`太強了！這 9 條線不管板子多大，只用一層一定接不起來，所以要分層規劃。最少 2 層、最短 56 格，你用了 ${s.used} 層、${s.len} 格。` }) },
   k33small:{ name:'彩蛋關 · 再縮小一點', W:5,H:5, nodes:{A:[0,0],B:[2,0],C:[4,0],'1':[0,4],'2':[2,4],'3':[4,4]}, nets:K33, layers:'yes', who:'bot',
     line:'還是那 9 條導線，可是板子縮成 5×5 了。這次要蓋幾層呢？',
     done:s => ({ img:'bot_happy', text:`板子變小，兩層就不夠了，最少要 3 層、最短 52 格。你用了 ${s.used} 層、${s.len} 格！` }) },
@@ -497,15 +494,29 @@ const SC = {
 };
 
 const ITEMS = [
-  {id:'q4b', name:'接好交叉的兩條導線', learn:'兩條導線會交叉時，把其中一條往上蓋一層，中間用不導電材料隔開，就能走最短的路又不碰在一起。', pts:10},
-  {id:'q6', name:'組裝阿寶的晶片', learn:'最下面是做好電晶體的矽晶圓，上面一層一層蓋導線，交錯的兩層導線之間用不導電材料隔開；做好以後可以再用外殼把整顆晶片包起來保護。', pts:15},
+  {id:'q1', name:'1958 · 幫基爾比出主意', learn:'把所有零件做在同一塊半導體上，就不用每個零件各包一個外殼。', pts:15},
+  {id:'q2', name:'1959 · 走廊上的繞路電路', learn:'導線繞路會變長，電路變大，電腦就縮不小。', pts:15},
+  {id:'q3', name:'1959 · 幫諾伊斯想辦法', learn:'用不導電材料把導線隔開，往上蓋一層，做成立體電路。', pts:20},
+  {id:'q4a', name:'晶片工廠 · 打賭猜層數', learn:'每兩條都交叉的三條導線，要放在三個不同的層。', pts:10},
+  {id:'q4b', name:'晶片工廠 · 接好三條交叉導線', learn:'需要時就往上多蓋一層。', pts:10},
+  {id:'k33', name:'晶片設計室 · 三井三屋', learn:'有些接法不管板子多大都一定會交叉，要往上蓋一層，還要先規劃好哪些導線放同一層。', pts:10},
+  {id:'q5', name:'晶片展示間 · 為什麼有十幾層', learn:'電晶體越多、晶片越小，導線就要蓋越多層。', pts:15},
+  {id:'q6', name:'晶片研究室 · 組裝阿寶的晶片', learn:'最下面是做好電晶體的矽晶圓，上面一層一層蓋導線，交錯的兩層導線之間用不導電材料隔開；做好以後可以再用外殼把整顆晶片包起來保護。', pts:15},
 ];
 
-const STOPS = ['設計電路','組裝晶片','完成'];
+const STOPS = ['訓練場','1958 基爾比','1959 走廊','諾伊斯辦公室','晶片工廠','晶片設計室','晶片展示間','晶片研究室'];
 const STEPS = [
-  {t:'level', lv:'chip', s:0},
-  {t:'stack', s:1},
-  {t:'result', s:2},
+  {t:'level', lv:'practice', s:0},
+  {t:'scene', q:'q1', s:1},
+  {t:'level', lv:'detour', s:2},
+  {t:'scene', q:'q2', s:2},
+  {t:'level', lv:'wall', s:3},
+  {t:'scene', q:'q4a', s:4},
+  {t:'level', lv:'cross3', s:4},
+  {t:'level', lv:'k33big', s:5},
+  {t:'scene', q:'q5', s:6},
+  {t:'stack', s:7},
+  {t:'result', s:8},
 ];
 
 function save(){ if (P) store.set(PKEY, {P, A, extra}); liveReport(); }
@@ -517,7 +528,7 @@ function renderMap(){
   $('map').hidden = !P;
   $('whoLine').innerHTML = P ? whoText(P) : '';
   if (!P) return;
-  const s = STEPS[P.step] ? STEPS[P.step].s : 7;
+  const s = STEPS[P.step] ? STEPS[P.step].s : STOPS.length;
   $('track').innerHTML = STOPS.map((n,i) => `<div class="stop ${i < s ? 'done' : i === s ? 'now' : ''}"><i></i><span>${n}</span></div>`).join('');
   const got = extra.parts || [];
   $('bagSlots').innerHTML = BAG_ORDER.map(id => got.includes(id) ? `<span class="slot pop" title="${PARTS[id].t}" style="border:none;${swStyle(PARTS[id].sw)}"></span>` : '<span class="slot"></span>').join('');
@@ -548,9 +559,9 @@ function renderStart(roomArg){
     ? `<p class="roomTag">要加入的房間：<b>${esc(room)}</b></p>`
     : `<div class="field"><label for="fRoom">房間代碼（老師有給才填）</label><input id="fRoom" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 位數字"></div>`;
   showCard(`<div class="scene">
-    <div class="place">晶片研究室</div>
+    <div class="place">2113 · 晶片研究室</div>
     <div class="sceneBody">
-      ${talk('bot_happy', '嗨，我是晶片小八！剛剛兩位科學家的想法你都聽到了。現在換你用那些想法，親手設計出阿寶的晶片！')}
+      ${talk('bot_happy', '嗨，我是晶片小八！研究室的機台要確認你真的懂晶片，才肯幫阿寶做晶片。跟我穿越回科學家的年代，一路收集晶片零件，最後親手組裝一顆晶片吧！')}
       ${resume}
       <form id="startForm" novalidate>
         <p class="ask">先登記你的工程師資料：</p>
@@ -562,7 +573,7 @@ function renderStart(roomArg){
           ${room ? '' : roomField}
         </div>
         <div class="err" id="fErr"></div>
-        <div class="actions" style="margin-top:4px"><button class="btn big" type="submit" id="goBtn">${room ? '加入房間' : '開始設計'}</button></div>
+        <div class="actions" style="margin-top:4px"><button class="btn big" type="submit" id="goBtn">${room ? '加入房間' : '穿越時空，出發！'}</button></div>
       </form>
     </div></div>`);
   $('startForm').addEventListener('submit', async e => {
@@ -613,7 +624,7 @@ function liveScore(){
   const st = STEPS[P.step];
   const firstOk = ITEMS.filter(it => A[it.id] && A[it.id].pts === it.pts).length;
   const passed = Math.min(P.step, STEPS.length - 1);
-  return { score: passed * 100 + firstOk * 100, firstOk, step:P.step, stop: st ? st.s : 7, parts:(extra.parts || []).length, done: !!st && st.t === 'result' };
+  return { score: passed * 100 + firstOk * 100, firstOk, step:P.step, stop: st ? st.s : STOPS.length, parts:(extra.parts || []).length, done: !!st && st.t === 'result' };
 }
 function liveAnswers(){
   const q = {};
@@ -804,8 +815,8 @@ function lightSVG(){
 function renderStack(){
   if (!extra.cardOrder){ extra.cardOrder = shuffle(['si','m1','ox1','m2','ox2','shell']); save(); }
   stack = [];
-  showCard(`<div class="scene"><div class="place">組裝晶片</div><div class="sceneBody">
-    ${talk('bot', '最後一步：把整顆晶片疊出來。桌上有這些材料，還有一個「保護外殼」，要不要用、放在哪裡，你自己決定。把需要的<b>從最下面開始</b>一張一張疊上去！')}
+  showCard(`<div class="scene"><div class="place">2113 · 晶片研究室</div><div class="sceneBody">
+    ${talk('bot', '零件都收集到了，我還在研究室抽屜找到一個「保護外殼」，要不要用、放在哪裡，你自己決定。把需要的零件<b>從最下面開始</b>一張一張疊上去，組成阿寶的晶片！')}
     <div class="stackWrap">
       <div><p class="label">零件背包</p><div class="pile" id="pile"></div></div>
       <div><div class="tower" id="tower"></div><div class="towerLab"><span>↓ 最先放的在最下面</span><span>點一下可以拿下來</span></div></div>
@@ -856,7 +867,7 @@ function openVerify(draw){
 
 /* ---------- 結局 ---------- */
 function total(){ return ITEMS.reduce((s,it) => s + (A[it.id] ? A[it.id].pts : 0), 0); }
-function title(sc){ return sc >= 90 ? '首席晶片工程師' : sc >= 70 ? '晶片工程師' : sc >= 50 ? '見習晶片工程師' : '晶片工程學徒'; }
+function title(sc){ const pct = sc / ITEMS.reduce((s, it) => s + it.pts, 0) * 100; return pct >= 90 ? '首席晶片工程師' : pct >= 70 ? '晶片工程師' : pct >= 50 ? '見習晶片工程師' : '晶片工程學徒'; }
 function renderResult(){
   closeOverlay(); clearTimeout(peekTimer);
   bonusMode = false; renderMap();
@@ -864,16 +875,15 @@ function renderResult(){
   const recap = ITEMS.map(it => { const full = A[it.id] && A[it.id].pts === it.pts;
     return `<div class="rc"><span class="tg ${full ? 'y' : 'p'}">${full ? '一次成功' : '多試了幾次'}</span><span class="nm">${it.name}</span><span class="ex">${it.learn}</span></div>`; }).join('');
   showCard(`<div class="scene"><div class="place">任務完成</div><div class="sceneBody">
-    ${talk('bot_happy', `${esc(P.name)}，你自己設計出了晶片的結構，還親手把它組起來。這張工程師證送給你！`)}
+    ${talk('bot_happy', `${esc(P.name)}，你跟著科學家一路找到做晶片的方法，還親手組好了阿寶的晶片。這張工程師證送給你！`)}
     <div class="badge pop">
       <svg class="chipIco" viewBox="0 0 72 72" aria-hidden="true"><rect x="14" y="14" width="44" height="44" rx="8" style="fill:var(--chip)"/>${[22,32,42,50].map(v => `<rect x="${v-2}" y="6" width="4" height="8" style="fill:var(--m1)"/><rect x="${v-2}" y="58" width="4" height="8" style="fill:var(--m1)"/><rect x="6" y="${v-2}" width="8" height="4" style="fill:var(--m1)"/><rect x="58" y="${v-2}" width="8" height="4" style="fill:var(--m1)"/>`).join('')}<rect x="24" y="24" width="24" height="24" rx="4" style="fill:var(--oxide)"/></svg>
       <div><div class="meta">晶片研究室認證</div><div class="ttl">${title(sc)}</div><div class="meta">${whoText(P)} · 一次成功的任務 ${firstOk} / ${ITEMS.length}</div></div>
     </div>
-    <p class="ask">你剛剛做到的事：</p>
+    <p class="ask">這趟旅程你學會了：</p>
     <div class="recap">${recap}</div>
-    <p class="ask">還有時間嗎？晶片小八藏了兩個彩蛋關：</p>
+    <p class="ask">還有時間嗎？晶片小八藏了一個彩蛋關：</p>
     <div class="actions" style="margin-top:0">
-      <button class="btn ghost" type="button" data-bonus="k33big">彩蛋：三井三屋</button>
       <button class="btn ghost" type="button" data-bonus="k33small">彩蛋：再縮小一點</button>
     </div>
   </div></div>`);
@@ -1124,15 +1134,17 @@ function openWallChoice(){
 function skipLevel(){
   clearTimeout(skipTimer);
   extra.skipped = (extra.skipped || []).concat(LV[S.key].name);
-  if (S.key === 'chip' || S.key === 'cross3'){ A.q4b = { ans:'跳過', pts:0, layers:'' }; }
+  if (S.key === 'cross3'){ A.q4b = { ans:'跳過', pts:0, layers:'' }; givePart('m2'); }
   if (S.key === 'detour') givePart('m1');
   if (S.key === 'wall'){ if (!A.q3) A.q3 = { ans:'跳過', pts:0 }; givePart('ox1'); }
+  if (S.key === 'k33big'){ A.k33 = { ans:'跳過', pts:0, layers:'' }; save(); return showSolution('k33big', null); }
   save(); next();
 }
 function showLevelDone(){
   const lv = L(), st = stats();
   if (!bonusMode){
-    if (S.key === 'chip' || S.key === 'cross3') A.q4b = { ans:'完成', pts:10, layers:st.used };
+    if (S.key === 'cross3') A.q4b = { ans:'完成', pts:10, layers:st.used };
+    if (S.key === 'k33big') A.k33 = { ans:'完成', pts:10, layers:st.used };
     if (S.key === 'detour') extra.detourLen = st.len;
     save();
   }
@@ -1145,7 +1157,7 @@ function showLevelDone(){
         <div class="stats"><div class="h">導線層數</div><div class="h">導線總長</div><div class="n">${st.used} 層</div><div class="n">${st.len} 格</div></div></div>
       <div>${isoSVG(lv, S.layers, true)}</div>
     </div>
-    <div class="actions">${bonusMode && SOLUTIONS[S.key] ? '<button class="btn big" type="button" id="seeSol">看最佳解答</button>' : ''}<button class="btn ${bonusMode && SOLUTIONS[S.key] ? 'ghost' : 'big'}" type="button" id="dn">${bonusMode ? '回到工程師證' : '繼續前進'}</button></div></div>`);
+    <div class="actions">${SOLUTIONS[S.key] ? '<button class="btn big" type="button" id="seeSol">看最佳解答</button>' : ''}<button class="btn ${SOLUTIONS[S.key] ? 'ghost' : 'big'}" type="button" id="dn">${bonusMode ? '回到工程師證' : '繼續前進'}</button></div></div>`);
   $('dn').onclick = () => { if (bonusMode) renderResult(); else next(); };
   const ss = $('seeSol'); if (ss) ss.onclick = () => showSolution(S.key, st);
 }
@@ -1175,9 +1187,10 @@ function showSolution(key, mine){
     <div class="solGrid">${layers.map((ws, k) => miniBoard(lv, ws, k)).join('')}</div>
     <p class="small" style="text-align:center;margin:10px 0 0">疊起來就是這樣：</p>
     <div class="solIso">${isoSVG(lv, layers, true)}</div>
-    <div class="actions"><button class="btn big" type="button" id="solAgain">我也來試試</button><button class="btn ghost" type="button" id="solBack">回到工程師證</button></div></div>`);
-  $('solAgain').onclick = () => { closeOverlay(); startLevel(key); };
-  $('solBack').onclick = () => renderResult();
+    <div class="actions">${bonusMode ? '<button class="btn big" type="button" id="solAgain">我也來試試</button><button class="btn ghost" type="button" id="solBack">回到工程師證</button>' : '<button class="btn big" type="button" id="solNext">繼續前進</button>'}</div></div>`);
+  const sa = $('solAgain'); if (sa) sa.onclick = () => { closeOverlay(); startLevel(key); };
+  const sb = $('solBack'); if (sb) sb.onclick = () => renderResult();
+  const sn = $('solNext'); if (sn) sn.onclick = () => next();
 }
 
 function openOverlay(html){ $('dialog').innerHTML = html; $('overlay').hidden = false; const b = $('dialog').querySelector('button'); if (b) b.focus(); }
