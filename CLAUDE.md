@@ -2,6 +2,8 @@
 
 這是 LIS 情境科學教材「晶片系列 EP4：晶片的誕生」的課堂結尾遊戲。修改前請先讀完這份文件。
 
+**閱讀順序**：先讀這份，再讀 `docs/開發紀錄.md`（做過哪些改動、哪些做法已經被否決），以及 `docs/活動說明.md`（課堂流程、時間、計分與正確答案）。
+
 - 學生畫面：https://pxchen-89.github.io/chip-ep4/
 - 老師投影頁：https://pxchen-89.github.io/chip-ep4/teacher.html
 - 對象：國小高年級，用平板或手機。
@@ -20,6 +22,8 @@
 | `build.py` | 組建：把 src 組成根目錄的 `index.html`、`teacher.html` |
 | `index.html`、`teacher.html` | **組建產物，不要手改**，GitHub Pages 直接發布這兩個檔 |
 | `tools/solver.py` 等 | 關卡驗證用的窮舉程式（最少層數、最短導線） |
+| `docs/活動說明.md` | 課堂流程、估計時間、計分與正確答案 |
+| `docs/開發紀錄.md` | 歷次改動與原因（避免把被否決的做法做回去） |
 
 ## 修改流程
 
