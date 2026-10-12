@@ -1,0 +1,1117 @@
+<title>導線走線大師</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout：時空任務。上方是時空地圖與背包；中間是角色對話場景或接導線關卡（左格子、右任務），窄螢幕上下疊放。 */
+:root{
+  --bg:#e9edf5; --panel:#ffffff; --ink:#1b2142; --muted:#5a6286; --line:#d3d9e8;
+  --si:#dfe3ec; --si-grid:#c4cadb; --si-edge:#b3bace;
+  --oxide:#e48fcb; --oxide-ink:#3a0f2c; --oxide-deep:#b85a98; --navy:#2b3f8a; --navy-soft:#dfe4f6;
+  --m1:#d99a12; --m2:#14a191; --m3:#d64f78; --m4:#6a63d8; --m5:#3a8fd9;
+  --danger:#e3412a; --ok:#25965a; --ok-soft:#dcf3e5; --warm-soft:#fff3d6;
+  --chip:#2b3f8a; --chip-ink:#ffffff; --bubble:#f3f5fb;
+  --f-display:"Chiron GoRound TC","Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;
+  --f-body:"Noto Sans TC","Microsoft JhengHei","PingFang TC",-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11152e; --panel:#1a1f40; --ink:#eef0fb; --muted:#a2a9cc; --line:#2e3566;
+    --si:#262c52; --si-grid:#363e6e; --si-edge:#1c2146;
+    --oxide:#e48fcb; --oxide-ink:#2a0a20; --oxide-deep:#9a4a80; --navy:#8fa2ff; --navy-soft:#262f63;
+    --m1:#f2b733; --m2:#2fd0bd; --m3:#ff7aa0; --m4:#9b94ff; --m5:#62b3ff;
+    --danger:#ff6a52; --ok:#4ccf86; --ok-soft:#173d2e; --warm-soft:#3b3218;
+    --chip:#8fa2ff; --chip-ink:#11152e; --bubble:#232a55;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11152e; --panel:#1a1f40; --ink:#eef0fb; --muted:#a2a9cc; --line:#2e3566;
+  --si:#262c52; --si-grid:#363e6e; --si-edge:#1c2146;
+  --oxide:#e48fcb; --oxide-ink:#2a0a20; --oxide-deep:#9a4a80; --navy:#8fa2ff; --navy-soft:#262f63;
+  --m1:#f2b733; --m2:#2fd0bd; --m3:#ff7aa0; --m4:#9b94ff; --m5:#62b3ff;
+  --danger:#ff6a52; --ok:#4ccf86; --ok-soft:#173d2e; --warm-soft:#3b3218;
+  --chip:#8fa2ff; --chip-ink:#11152e; --bubble:#232a55;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+.wrap{max-width:1320px;margin:0 auto;padding-inline:clamp(16px,2.6vw,36px);padding-block:14px 48px}
+
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px;margin-bottom:14px}
+.brand{display:flex;flex-direction:column;gap:0;min-width:0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;color:var(--muted)}
+h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,3.2vw,36px);letter-spacing:.06em;line-height:1.2}
+.hdrR{display:flex;align-items:center;gap:10px}
+.iconBtn{font:inherit;font-size:14px;border:1.5px solid var(--line);background:var(--panel);color:var(--muted);border-radius:999px;padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.iconBtn svg{width:16px;height:16px}
+
+/* 時空地圖 */
+.map{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px}
+.track{display:flex;align-items:flex-start;flex:1 1 560px;min-width:0}
+.stop{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;min-width:0}
+.stop::before{content:"";position:absolute;top:8px;left:-50%;width:100%;height:3px;background:var(--line);z-index:0}
+.stop:first-child::before{display:none}
+.stop.done::before,.stop.now::before{background:var(--ok)}
+.stop i{width:19px;height:19px;border-radius:50%;background:var(--panel);border:3px solid var(--line);z-index:1}
+.stop.done i{background:var(--ok);border-color:var(--ok)}
+.stop.now i{background:var(--navy);border-color:var(--navy);box-shadow:0 0 0 5px var(--navy-soft)}
+.stop span{font-size:12px;color:var(--muted);text-align:center;line-height:1.3;max-width:6.5em}
+.stop.now span{color:var(--ink);font-weight:700}
+@media (max-width:700px){.stop span{display:none}.stop.now span{display:block;position:absolute;top:24px;white-space:nowrap}.track{padding-bottom:20px}}
+.bag{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.bag .slots{display:flex;gap:4px}
+.bag .slot{width:30px;height:14px;border-radius:4px;border:1.5px dashed var(--line)}
+
+/* 角色對話 */
+.scene{max-width:820px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:22px;overflow:hidden}
+.place{background:var(--navy);color:var(--chip-ink);font-family:var(--f-mono);font-weight:700;font-size:13px;letter-spacing:.12em;padding:8px 22px}
+.sceneBody{padding:clamp(18px,3vw,30px)}
+.talk{display:flex;gap:16px;align-items:flex-start}
+.face{width:clamp(84px,14vw,128px);aspect-ratio:1;border-radius:18px;object-fit:cover;flex:none;background:var(--si);border:3px solid var(--panel);box-shadow:0 0 0 1.5px var(--line)}
+.face.sm{width:64px;border-radius:14px}
+.bubble{position:relative;background:var(--bubble);border-radius:18px;padding:12px 16px;flex:1;min-width:0}
+.bubble::before{content:"";position:absolute;left:-9px;top:22px;border:9px solid transparent;border-right-color:var(--bubble);border-left:0}
+.bubble .nm{font-family:var(--f-display);font-weight:900;font-size:15px;color:var(--navy);display:block;margin-bottom:2px;letter-spacing:.04em}
+.bubble p{margin:0;font-size:clamp(17px,1.9vw,19px);line-height:1.6}
+.bubble.ok{background:var(--ok-soft)} .bubble.ok::before{border-right-color:var(--ok-soft)}
+.bubble.hmm{background:var(--warm-soft)} .bubble.hmm::before{border-right-color:var(--warm-soft)}
+.ask{font-family:var(--f-display);font-weight:700;font-size:18px;margin:20px 0 10px}
+.opts{display:grid;gap:10px}
+.opt{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;font:inherit;font-size:17px;line-height:1.5;border:2px solid var(--line);background:var(--panel);color:var(--ink);border-radius:16px;padding:12px 16px;cursor:pointer;transition:transform .12s,border-color .12s}
+.opt::before{content:"";width:14px;height:14px;border-radius:50%;border:2.5px solid var(--muted);flex:none;margin-top:5px}
+.opt:hover:not(:disabled){border-color:var(--navy);transform:translateX(3px)}
+.opt:disabled{cursor:default;opacity:.45}
+.opt.pick{border-color:var(--ok);background:var(--ok-soft);opacity:1}
+.opt.pick::before{background:var(--ok);border-color:var(--ok)}
+.react{margin-top:16px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.figure{margin:14px 0 0;display:flex;justify-content:center}
+.figure svg{width:min(240px,64%);height:auto}
+.gain{display:inline-flex;align-items:center;gap:10px;margin-top:12px;font-weight:700;background:var(--warm-soft);border-radius:12px;padding:8px 14px}
+
+.field{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.field label{font-size:15px;font-weight:700}
+.field input{font:inherit;font-size:20px;padding:10px 14px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+.field input:focus{outline:none;border-color:var(--navy)}
+.field input[readonly]{opacity:.75}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 12px}
+.roomTag{display:inline-block;margin:0 0 4px;background:var(--navy-soft);border-radius:12px;padding:8px 16px;font-size:18px}
+.roomTag b{font-family:var(--f-mono);font-size:24px;letter-spacing:.15em;color:var(--navy)}
+.waitDots{display:flex;justify-content:center;gap:12px;margin:26px 0 10px}
+.waitDots i{width:16px;height:16px;border-radius:50%;background:var(--navy);animation:wd 1.2s ease-in-out infinite}
+.waitDots i:nth-child(2){animation-delay:.2s}.waitDots i:nth-child(3){animation-delay:.4s}
+@keyframes wd{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-10px);opacity:1}}
+.err{color:var(--danger);font-size:15px;margin-top:8px;min-height:1.5em}
+
+/* 遊戲區 */
+.game{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:900px){.game{grid-template-columns:minmax(0,1fr);gap:14px}.game > .side{display:contents}.game .task{order:-1}}
+.stage{display:flex;flex-direction:column;gap:8px;min-width:0}
+.hud{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:14px;color:var(--muted)}
+.hud .v{font-family:var(--f-mono);font-weight:700;color:var(--ink);font-size:18px;font-variant-numeric:tabular-nums;margin-left:4px}
+.msg{min-height:40px;display:flex;align-items:center}
+.toast{opacity:0;background:var(--ink);color:var(--panel);font-weight:500;font-size:15px;line-height:1.4;padding:7px 16px;border-radius:999px;transition:opacity .2s;max-width:100%}
+.toast.show{opacity:1}
+.toast.bad{background:var(--danger);color:#fff}
+.boardBox{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:clamp(10px,2vw,22px);display:flex;justify-content:center}
+#board{width:100%;height:auto;max-height:70vh;display:block;touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.task .lvName{font-family:var(--f-display);font-size:22px;font-weight:900;letter-spacing:.04em;margin:0 0 10px}
+.task .lvName small{font-family:var(--f-mono);font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.12em;display:block}
+.task .talk .face{width:72px;border-radius:14px}
+.task .bubble p{font-size:16px}
+.how{font-size:14px;color:var(--muted);margin:10px 0 0}
+.label{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;color:var(--muted);margin:0 0 10px}
+.nets{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px}
+.net{display:flex;align-items:center;gap:6px;border:1.5px dashed var(--line);border-radius:9px;padding:5px 8px;font-family:var(--f-mono);font-weight:700;font-size:15px;color:var(--muted)}
+.net .sw{width:10px;height:10px;border-radius:3px;background:var(--line);flex:none}
+.net.done{border-style:solid;color:var(--ink)}
+.net .ly{margin-left:auto;font-size:11px;font-weight:500;color:var(--muted)}
+.layers{display:flex;flex-direction:column;gap:6px}
+.layerTab{display:flex;align-items:center;gap:10px;font:inherit;font-size:15px;text-align:left;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:7px 12px;cursor:pointer}
+.layerTab .sw{width:26px;height:8px;border-radius:4px;flex:none}
+.layerTab .tag{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-left:auto}
+.layerTab.on{border-color:var(--navy);background:var(--navy-soft);font-weight:700}
+.btn{font:inherit;font-size:16px;font-weight:700;border-radius:12px;padding:10px 18px;cursor:pointer;border:1.5px solid var(--navy);background:var(--navy);color:var(--chip-ink);text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn.big{font-size:18px;padding:12px 24px;border-radius:14px}
+.btn.ghost{background:transparent;color:var(--navy)}
+.btn.oxide{background:var(--oxide);border-color:var(--oxide);color:var(--oxide-ink);font-size:17px;font-weight:900;justify-content:center;gap:10px;box-shadow:0 4px 0 var(--oxide-deep);transition:transform .08s,box-shadow .08s}
+.btn.oxide::before{content:"+";display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:50%;background:var(--oxide-ink);color:var(--oxide);font-size:24px;font-weight:900;line-height:1}
+.btn.oxide:hover:not(:disabled){filter:brightness(1.06)}
+.btn.oxide:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--oxide-deep)}
+.btn.oxide:disabled{box-shadow:none}
+@keyframes nudge{0%,100%{outline:3px solid transparent;outline-offset:2px}50%{outline:4px solid var(--oxide);outline-offset:6px}}
+.btn.oxide.nudge{animation:nudge 1.3s ease-in-out infinite}
+.hud .btn.oxide{margin-left:auto;padding:8px 16px;font-size:16px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.opt:focus-visible,.layerTab:focus-visible,.cardBtn:focus-visible,.lay:focus-visible,.iconBtn:focus-visible{outline:3px solid var(--m2);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.small{font-size:13px;color:var(--muted)}
+.isoBox svg{width:100%;height:auto;display:block}
+
+/* 組裝晶片 */
+.stackWrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;margin-top:16px;align-items:end}
+@media (max-width:620px){.stackWrap{grid-template-columns:minmax(0,1fr)}}
+.pile{display:flex;flex-direction:column;gap:8px}
+.cardBtn{display:flex;align-items:center;gap:12px;font:inherit;font-size:16px;font-weight:500;text-align:left;border:2px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:8px 12px;cursor:pointer}
+.cardBtn:hover:not(:disabled){border-color:var(--navy)}
+.cardBtn:disabled{opacity:.3;cursor:default}
+.sw2{width:64px;height:22px;border-radius:5px;flex:none}
+.tower{display:flex;flex-direction:column-reverse;gap:3px;border-bottom:5px solid var(--muted);padding:8px 8px 6px;min-height:240px;background:var(--bg);border-radius:14px 14px 0 0}
+.tower .lay{display:flex;align-items:center;gap:10px;border-radius:8px;padding:6px 10px;font-size:15px;font-weight:700;cursor:pointer;border:none;font-family:inherit;color:var(--ink);background:var(--panel);text-align:left;width:100%}
+.tower .lay .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-left:auto}
+.tower .empty{color:var(--muted);font-size:14px;text-align:center;margin:auto}
+.towerLab{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:4px;gap:8px}
+
+/* 驗證槽 */
+.slotBox{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:14px}
+.slotBox svg{width:min(300px,80%);height:auto}
+@keyframes wave{0%,100%{transform:rotate(0)}25%{transform:rotate(-18deg)}75%{transform:rotate(18deg)}}
+.hand{transform-box:fill-box;transform-origin:50% 90%}
+.hand.go{animation:wave .5s ease-in-out 2}
+.glow{opacity:0;transition:opacity .5s}
+.glow.on{opacity:1}
+
+/* 結局 */
+.badge{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center;border:2px solid var(--navy);border-radius:18px;padding:16px 18px;margin-top:16px;background:linear-gradient(135deg,var(--navy-soft),var(--panel))}
+.badge .chipIco{width:72px;height:72px}
+.badge .ttl{font-family:var(--f-display);font-weight:900;font-size:clamp(22px,3vw,30px);letter-spacing:.06em;line-height:1.2}
+.badge .meta{font-size:14px;color:var(--muted)}
+.recap{display:grid;margin-top:16px}
+.rc{display:grid;grid-template-columns:6.6em minmax(0,1fr);gap:4px 12px;border-top:1px solid var(--line);padding:10px 0;align-items:start}
+.rc .tg{font-size:12px;font-weight:700;border-radius:999px;padding:2px 10px;white-space:nowrap;margin-top:3px;justify-self:start}
+.rc .tg.y{background:var(--ok-soft);color:var(--ok)}
+.rc .tg.p{background:var(--warm-soft);color:var(--ink)}
+.rc .nm{font-weight:700}
+.rc .ex{grid-column:2;font-size:14px;color:var(--muted)}
+.send{margin-top:14px;border-radius:12px;padding:10px 14px;font-size:15px;background:var(--navy-soft)}
+.send.ok{background:var(--ok-soft)} .send.bad{background:var(--warm-soft)}
+
+
+.overlay{position:fixed;inset:0;background:rgba(10,14,36,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.dialog{background:var(--panel);color:var(--ink);border-radius:22px;max-width:760px;width:100%;max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.dlgGrid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:center;margin-top:14px}
+@media (max-width:620px){.dlgGrid{grid-template-columns:minmax(0,1fr)}}
+.solGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-top:14px}
+.solFig{margin:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.solFig svg{width:100%;max-width:260px;height:auto}
+.solFig figcaption{font-size:14px;text-align:center;color:var(--muted);font-family:var(--f-mono)}
+.solFig figcaption b{font-family:var(--f-body)}
+.solIso{max-width:420px;margin:0 auto}
+.solIso svg{width:100%;height:auto;display:block}
+.stats{display:grid;grid-template-columns:auto auto;gap:2px 18px;font-size:14px;margin-top:10px;width:max-content;max-width:100%}
+.stats .h{color:var(--muted);font-size:12px}
+.stats .n{font-family:var(--f-mono);font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.pulse{animation:pulse 1s ease-in-out infinite}
+@keyframes zap{0%{transform:scale(.3);opacity:1}100%{transform:scale(1.4);opacity:0}}
+.zap{transform-box:fill-box;transform-origin:center;animation:zap .55s ease-out forwards}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .35s ease-out}
+@media (prefers-reduced-motion: reduce){.pulse,.zap,.pop,.hand.go,.waitDots i,.btn.oxide.nudge{animation:none}.toast,.glow,.opt{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="eyebrow">晶片系列 EP4 · 晶片的誕生 · 時空任務</span>
+      <h1>導線走線大師</h1>
+    </div>
+    <div class="hdrR">
+      <span class="small" id="whoLine"></span>
+      <button class="iconBtn" type="button" id="sndBtn" aria-pressed="true"></button>
+    </div>
+  </header>
+
+  <nav class="map" id="map" hidden aria-label="時空地圖">
+    <div class="track" id="track"></div>
+    <div class="bag"><span>零件背包</span><div class="slots" id="bagSlots"></div></div>
+  </nav>
+
+  <section id="cardView"></section>
+
+  <section class="game" id="gameView" hidden>
+    <div class="stage">
+      <div class="hud">
+        <span>已接好<span class="v" id="hDone">0/0</span></span>
+        <span>導線總長<span class="v" id="hLen">0</span> 格</span>
+        <span>用了<span class="v" id="hLayers">1</span> 層</span>
+        <button type="button" class="btn oxide" id="addTop" hidden></button>
+      </div>
+      <div class="msg"><span class="toast" id="toast" role="status" aria-live="polite"></span></div>
+      <div class="boardBox"><svg id="board" role="img" aria-label="晶片俯視圖，按住電晶體拖曳來接導線"></svg></div>
+    </div>
+    <aside class="side">
+      <div class="card task" id="task"></div>
+      <div class="card"><p class="label">要接的導線</p><div class="nets" id="nets"></div></div>
+      <div class="card">
+        <p class="label">導線層</p>
+        <div class="layers" id="layers"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn ghost" id="undo" type="button">復原上一條</button>
+          <button class="btn ghost" id="reset" type="button">這關重來</button>
+        </div>
+      </div>
+      <div class="card isoBox">
+        <p class="label">從側面看晶片</p>
+        <div id="iso"></div>
+      </div>
+    </aside>
+  </section>
+</div>
+
+<div class="overlay" id="overlay" hidden><div class="dialog" id="dialog" role="dialog" aria-modal="true"></div></div>
+
+<script>
+(() => {
+{{LIVE_CORE}}
+const VERSION = 'v3-story';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+const shuffle = a => { a = a.slice(); for (let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; };
+
+/* 角色圖：取自晶片系列 EP4 影片畫面 */
+const IMG = { bot:'{{IMG:bot}}', bot_happy:'{{IMG:bot_happy}}', kilby:'{{IMG:kilby}}', kilby_happy:'{{IMG:kilby_happy}}', noyce:'{{IMG:noyce}}' };
+const WHO = { bot:'晶片小八', bot_happy:'晶片小八', kilby:'基爾比', kilby_happy:'基爾比', noyce:'諾伊斯' };
+const talk = (img, text, cls = '', small = false) =>
+  `<div class="talk"><img class="face${small ? ' sm' : ''}" src="${IMG[img]}" alt="${WHO[img]}"><div class="bubble ${cls}"><span class="nm">${WHO[img]}</span><p>${text}</p></div></div>`;
+
+/* 音效 */
+let actx = null, soundOn = store.get('wm-sound', true);
+function sfx(type){
+  if (!soundOn) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const seq = { ok:[[660,.08],[880,.14]], zap:[[120,.2,'sawtooth']], win:[[523,.1],[659,.1],[784,.1],[1047,.3]], tap:[[520,.04]], hmm:[[330,.12],[262,.18]], gain:[[784,.08],[988,.08],[1319,.2]] }[type];
+    let t = actx.currentTime;
+    for (const [f,d,w] of seq){ const o = actx.createOscillator(), g = actx.createGain(); o.type = w || 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(.07, t); g.gain.exponentialRampToValueAtTime(.001, t+d); o.connect(g).connect(actx.destination); o.start(t); o.stop(t+d+.02); t += d*.9; }
+  } catch(e){}
+}
+function renderSnd(){
+  const b = $('sndBtn'); b.setAttribute('aria-pressed', soundOn);
+  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/>${soundOn ? '<path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>' : '<path d="M17 9l5 6M22 9l-5 6"/>'}</svg>音效${soundOn ? '開' : '關'}`;
+}
+$('sndBtn').onclick = () => { soundOn = !soundOn; store.set('wm-sound', soundOn); renderSnd(); if (soundOn) sfx('tap'); };
+renderSnd();
+
+/* ================= 作答狀態 ================= */
+const PKEY = 'wire-master-progress-v4';
+let P = null, A = {}, extra = {}, params = {}, bonusMode = false;
+
+/* ================= 零件 ================= */
+const PARTS = {
+  si:{ t:'矽晶圓（上面做好所有電晶體）', sw:'si' },
+  m1:{ t:'第 1 層導線', sw:'m1' },
+  ox1:{ t:'不導電材料', sw:'ox' },
+  m2:{ t:'第 2 層導線', sw:'m2' },
+  ox2:{ t:'不導電材料', sw:'ox' },
+  shell:{ t:'保護外殼', sw:'shell' },
+};
+const BAG_ORDER = ['si','m1','ox1','m2','ox2'];
+const swStyle = sw => ({
+  si:'background:var(--si);border:2px solid var(--si-edge);background-image:radial-gradient(circle,var(--chip) 0 3px,transparent 4px);background-size:12px 100%;background-position:center',
+  ox:'background:var(--oxide);opacity:.75',
+  m1:'background:var(--m1);background-image:repeating-linear-gradient(90deg,transparent 0 10px,var(--panel) 10px 12px)',
+  m2:'background:var(--m2);background-image:repeating-linear-gradient(90deg,transparent 0 10px,var(--panel) 10px 12px)',
+  shell:'background:var(--muted);border-radius:11px',
+}[sw]);
+const gainHTML = id => `<div class="gain pop"><span class="sw2" style="${swStyle(PARTS[id].sw)}"></span>獲得零件：${PARTS[id].t}</div>`;
+function givePart(id){ extra.parts = extra.parts || []; if (!extra.parts.includes(id)){ extra.parts.push(id); save(); renderMap(); } }
+
+/* ================= 關卡 ================= */
+const K33 = []; for (const a of 'ABC') for (const b of '123') K33.push([a,b]);
+const LV = {
+  practice:{ name:'訓練場', W:5,H:5, nodes:{A:[0,1],B:[4,1],C:[1,3],D:[4,4]}, nets:[['A','B'],['C','D']], layers:'no', who:'bot',
+    line:'出發前先熱身！按住 A，沿著格子拖到 B 再放開。接好了再把 C 接到 D。',
+    done:s => ({ img:'bot_happy', text:'很好，手感不錯！我們穿越到 1958 年吧，有位科學家正在煩惱。' }) },
+  detour:{ name:'1959 · 實驗室走廊', W:7,H:7, nodes:{A:[1,3],B:[5,3],C:[3,1],D:[3,5]}, nets:[['A','B'],['C','D']], layers:'no', who:'bot',
+    line:'走廊上有一塊電路板還沒接好。A–B 和 C–D 如果都直直走，會在中間撞在一起，碰到就短路喔！想辦法兩條都接好。',
+    done:s => ({ img:'bot_happy', text:`接好了！如果兩條都能直直走，加起來只要 8 格，你用了 ${s.len} 格。`, part:'m1' }) },
+  wall:{ name:'1959 · 諾伊斯的辦公室', W:5,H:5, nodes:{A:[0,2],B:[4,2],C:[2,0],D:[2,4]}, nets:[['A','B'],['C','D']], layers:'gated', who:'noyce',
+    line:'電腦要縮小，板子也縮成 5×5 了。你把 A–B 和 C–D 都接接看，就知道我有多頭痛！想到辦法就告訴我。',
+    done:s => ({ img:'noyce', text:'C–D 從 A–B 的上面跨過去，中間隔著不導電材料，所以不會短路。導線一樣最短，板子也不用變大。這就是立體電路！' }) },
+  cross3:{ name:'晶片工廠 · 打賭關', W:5,H:5, nodes:{A:[1,0],B:[3,0],C:[4,2],D:[3,4],E:[1,4],F:[0,2]}, nets:[['A','D'],['B','E'],['C','F']], layers:'yes', who:'bot',
+    line:'來驗證我們的賭注！把 A–D、B–E、C–F 三條導線都接好。需要的話，就按粉紅色的「＋」按鈕，鋪一層不導電材料往上蓋。',
+    done:s => { const win = A.q4a && A.q4a.pts > 0;
+      return { img:'bot_happy', text:`${win ? '你贏了，猜得真準！' : `哈哈，這次我贏了！你猜 ${A.q4a ? A.q4a.ans : '?'}，`}最少要 3 層。三條導線每兩條都會交叉，所以每一條都要放在不同的層。${s.used > 3 ? `你用了 ${s.used} 層，其實 3 層就夠囉。` : ''}`, part:'m2' }; } },
+  k33big:{ name:'晶片設計室 · 三井三屋', W:7,H:7, nodes:{A:[1,1],B:[3,1],C:[5,1],'1':[1,5],'2':[3,5],'3':[5,5]}, nets:K33, layers:'yes', who:'bot',
+    line:'設計室接到一張難搞的訂單，是有名的數學謎題「三井三屋」：三間屋子（A、B、C）都要各鋪一條路到三口井（1、2、3），一共 9 條，而且路不能交叉。在平面上這一定做不到，但晶片可以往上蓋！先想想哪幾條可以放在同一層。',
+    done:s => ({ img:'bot_happy', text:`太強了！這 9 條線不管板子多大，只用一層一定接不起來，所以要分層規劃。最少 2 層、最短 56 格，你用了 ${s.used} 層、${s.len} 格。` }) },
+  k33small:{ name:'彩蛋關 · 再縮小一點', W:5,H:5, nodes:{A:[0,0],B:[2,0],C:[4,0],'1':[0,4],'2':[2,4],'3':[4,4]}, nets:K33, layers:'yes', who:'bot',
+    line:'還是那 9 條導線，可是板子縮成 5×5 了。這次要蓋幾層呢？',
+    done:s => ({ img:'bot_happy', text:`板子變小，兩層就不夠了，最少要 3 層、最短 52 格。你用了 ${s.used} 層、${s.len} 格！` }) },
+};
+
+/* 彩蛋關的最佳解答：[導線編號, 第幾層(0 起算), 經過的格子] */
+const SOLUTIONS = {
+  k33big:{ minL:2, len:56, sol:[[0,0,[8,15,22,29,36]],[1,0,[8,9,16,23,30,37,38]],[2,0,[8,1,2,3,4,5,6,13,20,27,34,41,40]],[3,1,[10,9,16,15,22,29,36]],[4,0,[10,17,24,31,38]],[5,0,[10,11,18,25,32,39,40]],[6,1,[12,11,18,17,24,23,30,37,36]],[7,1,[12,19,26,25,32,31,38]],[8,0,[12,19,26,33,40]]] },
+  k33small:{ minL:3, len:52, sol:[[0,0,[0,5,10,15,20]],[1,0,[0,1,6,11,16,21,22]],[2,1,[0,1,6,7,8,9,14,19,24]],[3,2,[2,1,6,5,10,15,20]],[4,0,[2,7,12,17,22]],[5,0,[2,3,8,13,18,23,24]],[6,2,[4,3,8,7,12,11,16,21,20]],[7,2,[4,9,14,13,18,17,22]],[8,0,[4,9,14,19,24]]] },
+};
+
+/* ================= 對話場景（每題第一次的選擇記成績） ================= */
+const SC = {
+  q1:{ place:'1958 · 基爾比的實驗室', img:'kilby', okImg:'kilby_happy', part:'si',
+    line:'唉……電路板上每個零件都包著自己的外殼，外殼加起來比裡面真正在工作的核心還佔空間！這樣電腦要怎麼變小啊？',
+    ask:'給基爾比一個建議：',
+    opts:[
+      {k:'同一塊半導體', t:'零件的核心都是半導體做的，把它們全部做在同一塊半導體上，再一起包起來', ok:true, say:'Amazing！我怎麼沒想到！這樣就不用每個零件都包一個外殼，體積一下子就變小了。'},
+      {k:'不導電材料隔開', t:'在導線之間放不導電材料，把導線隔開', say:'嗯……這好像是別的科學家在煩惱的事。我現在頭痛的是外殼太佔空間，不是導線碰在一起。再想想？'},
+      {k:'搬到大房間', t:'把電腦搬到更大的房間', say:'房間再大也沒用啦，我們是想讓電腦變小啊！再想想？'},
+      {k:'便宜零件', t:'換便宜一點的零件', say:'便宜的零件一樣有外殼，還是一樣佔空間呀。再想想？'}] },
+  q2:{ place:'1959 · 實驗室走廊', img:'bot', okImg:'bot_happy',
+    line:'考考你！剛剛繞路明明就接好了，為什麼科學家還要傷腦筋，想別的辦法？',
+    ask:'你怎麼回答晶片小八？',
+    opts:[
+      {k:'電路變大', t:'導線繞路會變長，電路要佔更大的地方，電腦就縮不小', ok:true, say:'答得好！科學家要的是更小的電腦，繞路剛好讓電路變大。走，去找諾伊斯！'},
+      {k:'不導電', t:'繞路的導線會變得不導電', say:'導線繞路還是會導電喔，你剛剛不是接好了嗎？再想想。'},
+      {k:'電晶體壞', t:'導線繞路會讓電晶體壞掉', say:'電晶體才沒那麼脆弱啦，繞路不會讓它壞掉。再想想。'},
+      {k:'沒有壞處', t:'繞路沒有壞處，科學家只是想試試新方法', say:'繞路有壞處喔！想想看，導線變長以後，電路會變怎樣？'}] },
+  q3:{ place:'1959 · 諾伊斯的辦公室', img:'noyce', okImg:'noyce', part:'ox1',
+    line:'就跟你說吧！板子縮小以後，導線走最短的路一定會碰在一起。你有什麼辦法？',
+    ask:'告訴諾伊斯你的辦法：',
+    opts:[
+      {k:'板子加大', t:'把板子加大成 7×7，讓導線繞路', say:'板子加大，電腦又變大了。我們要的是縮小啊！'},
+      {k:'接在一起', t:'讓兩條導線直接接在一起', say:'導線接在一起就短路了，訊號會跑錯地方。'},
+      {k:'不導電材料蓋一層', t:'在導線上面鋪一層不導電材料，再往上蓋一層導線', ok:true, say:'就是這個！同事剛好找到一種不導電、像玻璃一樣的材料。用它把上下兩層導線隔開，上面那層就能直接跨過去！'},
+      {k:'導線變細', t:'把導線做得更細，就能從旁邊擠過去', say:'導線再細，只要交叉還是會碰到，一樣會短路。'}] },
+  q4a:{ place:'晶片工廠 · 打賭時間', img:'bot', okImg:'bot_happy', bet:true, figure:'cross3', fixedOrder:true,
+    line:'來打個賭！下一關有三條導線：A–D、B–E、C–F。你看下面的位置圖，每兩條直直接都會交叉。你猜最少要蓋幾層導線，才接得起來？',
+    ask:'你的賭注：',
+    opts:[ {k:'1 層', t:'1 層就夠'}, {k:'2 層', t:'2 層'}, {k:'3 層', t:'3 層', ok:true}, {k:'4 層', t:'4 層'} ] },
+  q5:{ place:'2020 年代 · 晶片展示間', img:'bot_happy', okImg:'bot_happy', part:'ox2',
+    line:'歡迎來到晶片展示間！這顆小小的晶片裡有數百億個電晶體，導線大約蓋了十幾層。換你考考自己：為什麼要蓋這麼多層？',
+    ask:'你覺得是為什麼？',
+    opts:[
+      {k:'導線會交叉', t:'電晶體很多、晶片又小，導線放在同一層一定會交叉碰在一起，只好往上分很多層', ok:true, say:'完全正確！就像剛剛的關卡，導線越多、板子越小，就要蓋越多層。'},
+      {k:'比較堅固', t:'層數越多，晶片越堅固，摔到也不會壞', say:'蓋很多層不是為了堅固喔，想想剛剛三條交叉的導線。'},
+      {k:'不同顏色的電', t:'每一層導線負責傳送不同顏色的電', say:'電沒有顏色啦！遊戲裡的顏色只是幫你分辨是哪一層。'},
+      {k:'比較好夾', t:'晶片做厚一點，工廠的機器比較好夾', say:'十幾層加起來還是非常非常薄，不是為了變厚喔。'}] },
+};
+
+const ITEMS = [
+  {id:'q1', name:'1958 · 幫基爾比出主意', learn:'把所有零件做在同一塊半導體上，就不用每個零件各包一個外殼。', pts:15},
+  {id:'q2', name:'1959 · 走廊上的繞路電路', learn:'導線繞路會變長，電路變大，電腦就縮不小。', pts:15},
+  {id:'q3', name:'1959 · 幫諾伊斯想辦法', learn:'用不導電材料把導線隔開，往上蓋一層，做成立體電路。', pts:20},
+  {id:'q4a', name:'晶片工廠 · 打賭猜層數', learn:'每兩條都交叉的三條導線，要放在三個不同的層。', pts:10},
+  {id:'q4b', name:'晶片工廠 · 接好三條交叉導線', learn:'需要時就往上多蓋一層。', pts:10},
+  {id:'k33', name:'晶片設計室 · 三井三屋', learn:'有些接法不管板子多大都一定會交叉，要往上蓋一層，還要先規劃好哪些導線放同一層。', pts:10},
+  {id:'q5', name:'晶片展示間 · 為什麼有十幾層', learn:'電晶體越多、晶片越小，導線就要蓋越多層。', pts:15},
+  {id:'q6', name:'晶片研究室 · 組裝阿寶的晶片', learn:'最下面是做好電晶體的矽晶圓，上面一層一層蓋導線，交錯的兩層導線之間用不導電材料隔開；做好以後可以再用外殼把整顆晶片包起來保護。', pts:15},
+];
+
+const STOPS = ['訓練場','1958 基爾比','1959 走廊','諾伊斯辦公室','晶片工廠','晶片設計室','晶片展示間','晶片研究室'];
+const STEPS = [
+  {t:'level', lv:'practice', s:0},
+  {t:'scene', q:'q1', s:1},
+  {t:'level', lv:'detour', s:2},
+  {t:'scene', q:'q2', s:2},
+  {t:'level', lv:'wall', s:3},
+  {t:'scene', q:'q4a', s:4},
+  {t:'level', lv:'cross3', s:4},
+  {t:'level', lv:'k33big', s:5},
+  {t:'scene', q:'q5', s:6},
+  {t:'stack', s:7},
+  {t:'result', s:8},
+];
+
+function save(){ if (P) store.set(PKEY, {P, A, extra}); liveReport(); }
+const whoText = p => [p.room ? '房間 ' + p.room : '', p.cls, p.seat ? p.seat + ' 號' : '', p.name].filter(Boolean).map(esc).join(' · ');
+function go(step){ P.step = step; save(); renderStep(); window.scrollTo(0,0); }
+function next(){ go(P.step + 1); }
+
+function renderMap(){
+  $('map').hidden = !P;
+  $('whoLine').innerHTML = P ? whoText(P) : '';
+  if (!P) return;
+  const s = STEPS[P.step] ? STEPS[P.step].s : STOPS.length;
+  $('track').innerHTML = STOPS.map((n,i) => `<div class="stop ${i < s ? 'done' : i === s ? 'now' : ''}"><i></i><span>${n}</span></div>`).join('');
+  const got = extra.parts || [];
+  $('bagSlots').innerHTML = BAG_ORDER.map(id => got.includes(id) ? `<span class="slot pop" title="${PARTS[id].t}" style="border:none;${swStyle(PARTS[id].sw)}"></span>` : '<span class="slot"></span>').join('');
+}
+function showCard(html){ $('gameView').hidden = true; $('cardView').hidden = false; $('cardView').innerHTML = html; }
+
+function renderStep(){
+  closeOverlay(); renderMap();
+  const st = STEPS[P.step]; if (!st) return;
+  if (st.t === 'level') startLevel(st.lv);
+  else if (st.t === 'scene') renderScene(st.q);
+  else if (st.t === 'stack') renderStack();
+  else if (st.t === 'result') renderResult();
+}
+
+/* ---------- 開場 ---------- */
+function renderStart(roomArg){
+  P = null; bonusMode = false; renderMap();
+  liveOffs.forEach(f => f()); liveOffs = [];
+  const saved = store.get(PKEY, null);
+  const urlRoom = /^\d{4}$/.test(params.room || '') ? params.room : '';
+  const room = LIVE_ENABLED ? (roomArg || urlRoom) : '';
+  let resume = '';
+  if (saved && saved.P && saved.P.step > 0 && STEPS[saved.P.step] && STEPS[saved.P.step].t !== 'result')
+    resume = `<div class="react">${talk('bot', `咦？${esc(saved.P.name)}，你上次走到「${STOPS[STEPS[saved.P.step].s] || '終點'}」就斷線了。要接著走嗎？`, 'hmm', true)}
+      <div class="actions"><button class="btn" type="button" id="resume">接著走</button><button class="btn ghost" type="button" id="discard">不是我，重新開始</button></div></div>`;
+  const roomField = !LIVE_ENABLED ? '' : room
+    ? `<p class="roomTag">要加入的房間：<b>${esc(room)}</b></p>`
+    : `<div class="field"><label for="fRoom">房間代碼（老師有給才填）</label><input id="fRoom" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 位數字"></div>`;
+  showCard(`<div class="scene">
+    <div class="place">2113 · 晶片研究室</div>
+    <div class="sceneBody">
+      ${talk('bot_happy', '嗨，我是晶片小八！研究室的機台要確認你真的懂晶片，才肯幫阿寶做晶片。跟我穿越回科學家的年代，一路收集晶片零件，最後親手組裝一顆晶片吧！')}
+      ${resume}
+      <form id="startForm" novalidate>
+        <p class="ask">先登記你的工程師資料：</p>
+        ${room ? roomField : ''}
+        <div class="fields">
+          <div class="field"><label for="fCls">班級（選填）</label><input id="fCls" autocomplete="off" placeholder="六年三班"></div>
+          <div class="field"><label for="fSeat">座號（選填）</label><input id="fSeat" inputmode="numeric" autocomplete="off" placeholder="12"></div>
+          <div class="field"><label for="fName">姓名</label><input id="fName" autocomplete="off" maxlength="20" placeholder="你的名字"></div>
+          ${room ? '' : roomField}
+        </div>
+        <div class="err" id="fErr"></div>
+        <div class="actions" style="margin-top:4px"><button class="btn big" type="submit" id="goBtn">${room ? '加入房間' : '穿越時空，出發！'}</button></div>
+      </form>
+    </div></div>`);
+  $('startForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const cls = $('fCls').value.trim(), seat = $('fSeat').value.trim(), name = $('fName').value.trim();
+    const pin = room || ($('fRoom') ? $('fRoom').value.trim() : '');
+    if (!name){ $('fErr').textContent = '寫下你的名字，晶片小八才認得你。'; return; }
+    if (seat && !/^\d{1,3}$/.test(seat)){ $('fErr').textContent = '座號請填數字。'; return; }
+    if (pin && !/^\d{4}$/.test(pin)){ $('fErr').textContent = '房間代碼是 4 位數字。'; return; }
+    const fresh = () => { A = {}; extra = { sparksWall:0, skipped:[], parts:[], tries:{} }; };
+    if (!pin){
+      sfx('gain');
+      P = { cls:cls.slice(0,40), seat, name:name.slice(0,20), step:0, t0:Date.now() };
+      fresh(); go(0); return;
+    }
+    const btn = $('goBtn'); btn.disabled = true; btn.textContent = '連線中…'; $('fErr').textContent = '';
+    try {
+      const be = await liveBackend();
+      const uid = await be.uid();   // 先登入，安全規則要求登入後才能讀房間
+      const r = await be.roomGet(pin);
+      if (!r || r.createdAt < Date.now() - ROOM_TTL) throw new Error('找不到房間 ' + pin + '，請再確認一次代碼。');
+      if (r.status === 'ended') throw new Error('房間 ' + pin + ' 這一場已經結束了。');
+      await be.playerSet(pin, uid, { name:name.slice(0,20), cls:cls.slice(0,40), score:0, step:0, stop:0, parts:0, firstOk:0, done:false, joinedAt:Date.now(), updatedAt:Date.now() });
+      sfx('gain');
+      P = { cls:cls.slice(0,40), seat, name:name.slice(0,20), step:0, t0:Date.now(), room:pin, uid };
+      fresh(); store.set(PKEY, {P, A, extra}); liveLast = ''; liveLastQ = '';
+      liveAttach();
+      if (r.status === 'lobby') waitForStart(); else go(0);
+    } catch(err){
+      btn.disabled = false; btn.textContent = room ? '加入房間' : '穿越時空，出發！';
+      $('fErr').textContent = /找不到|結束/.test(err.message) ? err.message : '連不上房間，請檢查網路。也可以先不填房間代碼，自己玩。';
+    }
+  });
+  const r = $('resume');
+  if (r){
+    r.onclick = async () => {
+      P = saved.P; A = saved.A || {}; extra = saved.extra || {sparksWall:0, skipped:[], parts:[], tries:{}};
+      if (P.room && LIVE_ENABLED){ liveLast = ''; liveLastQ = ''; liveAttach(); }
+      renderStep(); liveReport();
+    };
+    $('discard').onclick = () => { store.del(PKEY); renderStart(room); };
+  }
+}
+
+/* ---------- 即時房間（學生端） ---------- */
+let liveT = null, liveLast = '', liveLastQ = '', liveOffs = [], liveClosed = false;   // liveClosed：老師已結束或刪除這一場，停止回報
+function liveScore(){
+  const st = STEPS[P.step];
+  const firstOk = ITEMS.filter(it => A[it.id] && A[it.id].pts === it.pts).length;
+  const passed = Math.min(P.step, STEPS.length - 1);
+  return { score: passed * 100 + firstOk * 100, firstOk, step:P.step, stop: st ? st.s : STOPS.length, parts:(extra.parts || []).length, done: !!st && st.t === 'result' };
+}
+function liveAnswers(){
+  const q = {};
+  ITEMS.forEach(it => { const a = A[it.id]; if (a) q[it.id] = { ok: a.pts === it.pts, a: String(a.ans).slice(0, 80) }; });
+  return q;
+}
+function liveReport(){
+  if (!P || !P.room || !P.uid || bonusMode || !LIVE_ENABLED || liveClosed) return;
+  clearTimeout(liveT);
+  liveT = setTimeout(async () => {
+    if (!P || !P.room) return;
+    const s = liveScore(), j = JSON.stringify(s);
+    const q = liveAnswers(), qj = JSON.stringify(q);
+    const be = await liveBackend();
+    if (j !== liveLast){
+      liveLast = j;
+      if (s.done && !P.finishedAt){ P.finishedAt = Date.now(); }
+      const data = Object.assign({ name:P.name, cls:P.cls || '', updatedAt:Date.now() }, s, P.finishedAt ? { finishedAt:P.finishedAt } : {});
+      try { await be.playerSet(P.room, P.uid, data); } catch(e){ liveLast = ''; }
+    }
+    // 作答紀錄另外存，就算寫入失敗也不影響排行榜
+    if (qj !== liveLastQ && Object.keys(q).length){
+      liveLastQ = qj;
+      try { await be.answerSet(P.room, P.uid, { name:P.name, q, updatedAt:Date.now() }); } catch(e){ liveLastQ = ''; }
+    }
+  }, 250);
+}
+function liveAttach(){
+  liveOffs.forEach(f => f()); liveOffs = []; liveClosed = false;
+  const room = P.room, uid = P.uid;
+  liveBackend().then(async be => {
+    await be.uid();
+    let seen = false;
+    const off = be.playerWatch(room, uid, p => {
+      if (p) seen = true;
+      else if (p === null && seen && P && P.room === room && !liveClosed) liveKicked(room);   // 老師結束或刪除整場時不算被移出
+    });
+    liveOffs.push(off);
+    liveOffs.push(be.roomWatch(room, r => { if (r === null || (r && r.status === 'ended')){ liveClosed = true; clearTimeout(liveT); } }));
+  }).catch(() => {});
+}
+function waitForStart(){
+  closeOverlay();
+  showCard(`<div class="scene"><div class="place">房間 ${esc(P.room)} · 等待出發</div><div class="sceneBody">
+    ${talk('bot_happy', `${esc(P.name)}，你已經加入房間了！看看投影幕上有沒有你的名字。等老師按下開始，大家一起出發！`)}
+    <div class="waitDots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <p class="small" style="text-align:center">老師按下開始後，這個畫面會自動跳到第一關。</p></div></div>`);
+  $('map').hidden = true;
+  $('whoLine').innerHTML = whoText(P);
+  const room = P.room;
+  let done = false, off = null, lock = null;
+  const finish = () => {
+    if (done) return; done = true;
+    if (off) off(); clearInterval(poll);
+    document.removeEventListener('visibilitychange', onVis);
+    try { if (lock) lock.release(); } catch(e){}
+  };
+  const handle = r => {
+    if (done || r === undefined || !P || P.room !== room || !$('cardView').querySelector('.waitDots')) return;
+    if (r === null || r.status === 'ended'){ finish(); return liveCanceled(); }
+    if (r.status === 'playing' && P.step === 0){ finish(); P.t0 = Date.now(); sfx('win'); go(0); }
+  };
+  // 三道保險：即時推送、每 2 秒主動查一次、平板從休眠回來立刻查
+  const check = () => liveBackend().then(be => be.roomGet(room)).then(handle).catch(() => {});
+  const keepAwake = async () => { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') lock = await navigator.wakeLock.request('screen'); } catch(e){} };
+  const onVis = () => { if (document.visibilityState === 'visible'){ check(); keepAwake(); } };
+  const poll = setInterval(check, 2000);
+  document.addEventListener('visibilitychange', onVis);
+  keepAwake();
+  liveBackend().then(be => { if (!done) off = be.roomWatch(room, handle); });
+  liveOffs.push(finish);
+}
+function liveCanceled(){
+  const room = P.room;
+  liveOffs.forEach(f => f()); liveOffs = []; liveClosed = true;
+  showCard(`<div class="scene"><div class="place">房間 ${esc(room)}</div><div class="sceneBody">
+    ${talk('bot', '老師取消了這一場。你還是可以自己玩，一樣能收集零件、拿到工程師證！', 'hmm')}
+    <div class="actions"><button class="btn big" type="button" id="soloGo">自己玩</button></div></div></div>`);
+  $('soloGo').onclick = () => { P.room = null; P.uid = null; P.t0 = Date.now(); go(0); };
+}
+function liveKicked(room){
+  liveOffs.forEach(f => f()); liveOffs = [];
+  store.del(PKEY); P = null; closeOverlay(); renderMap();
+  showCard(`<div class="scene"><div class="place">房間 ${esc(room)}</div><div class="sceneBody">
+    ${talk('bot', '老師把你移出這個房間了，可能是名字需要修改。請重新輸入名字，再加入一次。', 'hmm')}
+    <div class="actions"><button class="btn big" type="button" id="rejoin">重新加入</button></div></div></div>`);
+  $('rejoin').onclick = async () => { try { await (await liveBackend()).newIdentity(); } catch(e){} renderStart(room); };
+}
+
+/* ---------- 對話場景 ---------- */
+function crossFigure(){
+  const lv = LV.cross3, s = 40;
+  let o = `<svg viewBox="-4 -4 ${lv.W*s+8} ${lv.H*s+8}" role="img" aria-label="三條導線的位置圖">`;
+  o += `<rect x="-2" y="-2" width="${lv.W*s+4}" height="${lv.H*s+4}" rx="8" style="fill:var(--si);stroke:var(--si-edge);stroke-width:2"/>`;
+  const c = k => lv.nodes[k].map(v => v*s + s/2);
+  lv.nets.forEach(([a,b]) => { const [x1,y1] = c(a), [x2,y2] = c(b);
+    o += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="stroke:var(--muted);stroke-width:3;stroke-dasharray:6 6"/>`; });
+  for (const k of Object.keys(lv.nodes)){ const [x,y] = c(k);
+    o += `<rect x="${x-14}" y="${y-14}" width="28" height="28" rx="6" style="fill:var(--chip)"/><text x="${x}" y="${y+1}" text-anchor="middle" dominant-baseline="middle" style="fill:var(--chip-ink);font:700 16px var(--f-mono)">${k}</text>`; }
+  return o + '</svg>';
+}
+function orderFor(id){
+  const q = SC[id];
+  extra.orders = extra.orders || {};
+  if (!extra.orders[id]){ extra.orders[id] = q.fixedOrder ? q.opts.map((_,i) => i) : shuffle(q.opts.map((_,i) => i)); save(); }
+  return extra.orders[id].map(i => q.opts[i]);
+}
+function sceneHTML(id){
+  const q = SC[id];
+  return `<div class="place">${q.place}</div><div class="sceneBody">
+    <div id="mainTalk">${talk(q.img, q.line)}</div>
+    ${q.figure === 'cross3' ? `<div class="figure">${crossFigure()}</div>` : ''}
+    <p class="ask">${q.ask}</p>
+    <div class="opts">${orderFor(id).map(o => `<button type="button" class="opt" data-i="${q.opts.indexOf(o)}">${o.t}</button>`).join('')}</div>
+    <div class="react" id="react"></div></div>`;
+}
+function bindScene(id, root, onDone, nextLabel){
+  const q = SC[id], react = root.querySelector('#react');
+  root.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+    const o = q.opts[+b.dataset.i];
+    extra.tries = extra.tries || {}; extra.tries[id] = (extra.tries[id] || 0) + 1;
+    if (!A[id]){ A[id] = { ans:o.k, pts: o.ok ? ITEMS.find(x => x.id === id).pts : 0 }; }
+    save();
+    const finish = (html, label) => {
+      root.querySelectorAll('.opt').forEach(x => { x.disabled = true; });
+      b.classList.add('pick');
+      react.innerHTML = html + `<div class="actions"><button class="btn big" type="button" data-goon>${label}</button></div>`;
+      const go = react.querySelector('[data-goon]'); go.onclick = onDone; go.focus();
+    };
+    if (q.bet){
+      sfx('tap');
+      finish(talk('bot_happy', `賭注成立：你猜 <b>${o.t}</b>！我們去接接看，看誰猜對。`, '', true), '去接導線');
+      return;
+    }
+    if (o.ok){
+      sfx(q.part ? 'gain' : 'ok');
+      root.querySelector('#mainTalk').innerHTML = talk(q.okImg, q.line);
+      if (q.part) givePart(q.part);
+      finish(talk(q.okImg, o.say, 'ok', true) + (q.part ? gainHTML(q.part) : ''), nextLabel || '繼續前進');
+    } else {
+      sfx('hmm');
+      b.disabled = true;
+      react.innerHTML = talk(q.img, o.say, 'hmm', true);
+    }
+  });
+}
+function renderScene(id){
+  showCard(`<div class="scene" id="sceneCard">${sceneHTML(id)}</div>`);
+  bindScene(id, $('sceneCard'), next);
+}
+
+/* ---------- 組裝晶片＋驗證槽 ---------- */
+let stack = [];
+function scoreStack(seq){
+  // 依課程簡報第 28、30、34 頁：電晶體做在最下面的矽晶圓上，導線往上蓋，交錯的兩層導線之間用不導電材料隔開。
+  // 第 1 層導線底下多鋪一層不導電材料（第 27 頁）也算對。
+  // 保護外殼：可以不放；放在最上面代表把整顆晶片封起來（第 24 頁「再封起來」），也算對；夾在中間或下面才算錯。
+  const raw = seq.map(c => c.startsWith('ox') ? 'ox' : c);
+  const iS = raw.indexOf('shell');
+  if (iS >= 0 && iS !== raw.length - 1) return 0;
+  const ids = raw.filter(x => x !== 'shell');
+  const iM1 = ids.indexOf('m1'), iM2 = ids.indexOf('m2');
+  const ok = ids[0] === 'si' && iM1 > 0 && iM2 > iM1 && ids.slice(iM1+1, iM2).includes('ox');
+  return ok ? 15 : 0;
+}
+function stackHint(seq){
+  const ids = seq.map(c => c.startsWith('ox') ? 'ox' : c);
+  const iS = ids.indexOf('shell');
+  if (iS >= 0 && iS !== ids.length - 1) return '外殼要包在哪裡，才保護得到整顆晶片？晶片裡面的零件，不需要各自包一個外殼喔。';
+  if (ids[0] !== 'si') return '電晶體要先做好，才能在上面蓋導線。哪一張應該放在最下面？';
+  if (!ids.includes('m1') || !ids.includes('m2')) return '兩層導線都要用上喔，阿寶的晶片需要兩層導線。';
+  const iM1 = ids.indexOf('m1'), iM2 = ids.indexOf('m2');
+  if (iM2 < iM1) return '第 1 層導線應該在第 2 層導線的下面。';
+  return '兩層導線直接疊在一起，會碰在一起短路！中間要放什麼？';
+}
+function lightSVG(){
+  return `<svg viewBox="0 0 300 200" role="img" aria-label="感應夜燈驗證槽">
+    <defs><radialGradient id="gl" cx="50%" cy="45%" r="50%"><stop offset="0" stop-color="#ffe9a3" stop-opacity="1"/><stop offset=".5" stop-color="#ffd166" stop-opacity=".55"/><stop offset="1" stop-color="#ffd166" stop-opacity="0"/></radialGradient></defs>
+    <rect x="10" y="10" width="280" height="180" rx="20" fill="#0c1024" stroke="#3a4170" stroke-width="3"/>
+    <text x="24" y="34" fill="#8f97c4" style="font:700 12px var(--f-mono)">驗證槽 · 模擬黑暗</text>
+    <circle id="glow" class="glow" cx="120" cy="105" r="80" fill="url(#gl)"/>
+    <path d="M90 140 L150 140 L144 150 L96 150 Z" fill="#59608f"/>
+    <path id="dome" d="M95 140 C95 95, 145 95, 145 140 Z" fill="#2a2f55" stroke="#59608f" stroke-width="2"/>
+    <rect x="112" y="126" width="16" height="10" rx="2" fill="#4a72ff"/>
+    <g id="hand" class="hand"><path d="M228 150 l0-48 a7 7 0 0 1 14 0 l0 30 l0-40 a7 7 0 0 1 14 0 l0 40 l0-34 a7 7 0 0 1 14 0 l0 38 l0-26 a7 7 0 0 1 14 0 l0 46 c0 18 -14 28 -30 28 c-14 0 -22 -6 -30 -18 l-14 -22 a7 7 0 0 1 12 -8 z" fill="#f2c9a5" stroke="#b58a69" stroke-width="2"/></g>
+  </svg>`;
+}
+function renderStack(){
+  if (!extra.cardOrder){ extra.cardOrder = shuffle(['si','m1','ox1','m2','ox2','shell']); save(); }
+  stack = [];
+  showCard(`<div class="scene"><div class="place">2113 · 晶片研究室</div><div class="sceneBody">
+    ${talk('bot', '零件都收集到了，我還在研究室抽屜找到一個「保護外殼」，要不要用、放在哪裡，你自己決定。把需要的零件<b>從最下面開始</b>一張一張疊上去，組成阿寶的晶片！')}
+    <div class="stackWrap">
+      <div><p class="label">零件背包</p><div class="pile" id="pile"></div></div>
+      <div><div class="tower" id="tower"></div><div class="towerLab"><span>↓ 最先放的在最下面</span><span>點一下可以拿下來</span></div></div>
+    </div>
+    <div class="actions"><button class="btn big" type="button" id="stackDone" disabled>放進驗證槽</button></div>
+  </div></div>`);
+  const draw = () => {
+    $('pile').innerHTML = extra.cardOrder.map(id => `<button type="button" class="cardBtn" data-id="${id}" ${stack.includes(id) ? 'disabled' : ''}><span class="sw2" style="${swStyle(PARTS[id].sw)}"></span>${PARTS[id].t}</button>`).join('');
+    $('tower').innerHTML = stack.length ? stack.map((id,i) => `<button type="button" class="lay pop" data-id="${id}" aria-label="拿下來：${PARTS[id].t}"><span class="sw2" style="${swStyle(PARTS[id].sw)}"></span>${PARTS[id].t}<span class="n">${i+1}</span></button>`).join('') : '<span class="empty">把零件疊到這裡</span>';
+    $('stackDone').disabled = stack.length < 3;
+    $('pile').querySelectorAll('.cardBtn').forEach(b => b.onclick = () => { sfx('tap'); stack.push(b.dataset.id); draw(); });
+    $('tower').querySelectorAll('.lay').forEach(b => b.onclick = () => { stack.splice(stack.indexOf(b.dataset.id), 1); draw(); });
+  };
+  draw();
+  $('stackDone').onclick = () => openVerify(draw);
+}
+function openVerify(draw){
+  const pts = scoreStack(stack);
+  extra.tries = extra.tries || {}; extra.tries.q6 = (extra.tries.q6 || 0) + 1;
+  if (!A.q6) A.q6 = { ans: stack.map(id => PARTS[id].t.replace('（上面做好所有電晶體）','')).join(' → '), pts };
+  save();
+  openOverlay(`<div class="place">驗證槽</div><div class="sceneBody">
+    ${talk('bot', '晶片放進去了！感應夜燈要在黑暗中、有人經過才會亮。揮揮手試試看！')}
+    <div class="slotBox">${lightSVG()}<button class="btn big" type="button" id="waveBtn">揮揮手</button></div>
+    <div class="react" id="vReact"></div></div>`);
+  $('waveBtn').onclick = () => {
+    $('waveBtn').disabled = true;
+    $('hand').classList.add('go');
+    setTimeout(() => {
+      const glow = $('glow');
+      if (pts === 15){
+        glow.classList.add('on'); sfx('win');
+        const wrapped = stack[stack.length - 1] === 'shell';
+        $('vReact').innerHTML = talk('bot_happy', '燈亮了！驗證通過！晶片機台啟動了，阿寶有救了！' + (wrapped ? '你還幫晶片包上外殼保護，就像基爾比說的，所有零件做好以後再一起包起來。' : ''), 'ok', true) + `<div class="actions"><button class="btn big" type="button" id="vNext">領取工程師證</button></div>`;
+        $('vNext').onclick = next; $('vNext').focus();
+      } else {
+        sfx('hmm');
+        const fails = extra.tries.q6;
+        $('vReact').innerHTML = talk('bot', '燈沒有亮……' + stackHint(stack), 'hmm', true)
+          + `<div class="actions"><button class="btn" type="button" id="vBack">回去重新疊</button>${fails >= 2 ? '<button class="btn ghost" type="button" id="vShow">請晶片小八示範</button>' : ''}</div>`;
+        $('vBack').onclick = () => { closeOverlay(); };
+        const vs = $('vShow'); if (vs) vs.onclick = () => { stack = ['si','ox1','m1','ox2','m2']; closeOverlay(); draw(); };
+        $('vBack').focus();
+      }
+    }, 1000);
+  };
+}
+
+/* ---------- 結局 ---------- */
+function total(){ return ITEMS.reduce((s,it) => s + (A[it.id] ? A[it.id].pts : 0), 0); }
+function title(sc){ const pct = sc / ITEMS.reduce((s, it) => s + it.pts, 0) * 100; return pct >= 90 ? '首席晶片工程師' : pct >= 70 ? '晶片工程師' : pct >= 50 ? '見習晶片工程師' : '晶片工程學徒'; }
+function renderResult(){
+  closeOverlay(); clearTimeout(peekTimer);
+  bonusMode = false; renderMap();
+  const sc = total(), firstOk = ITEMS.filter(it => A[it.id] && A[it.id].pts === it.pts).length;
+  const recap = ITEMS.map(it => { const full = A[it.id] && A[it.id].pts === it.pts;
+    return `<div class="rc"><span class="tg ${full ? 'y' : 'p'}">${full ? '一次成功' : '多試了幾次'}</span><span class="nm">${it.name}</span><span class="ex">${it.learn}</span></div>`; }).join('');
+  showCard(`<div class="scene"><div class="place">任務完成</div><div class="sceneBody">
+    ${talk('bot_happy', `${esc(P.name)}，你跟著科學家一路找到做晶片的方法，還親手組好了阿寶的晶片。這張工程師證送給你！`)}
+    <div class="badge pop">
+      <svg class="chipIco" viewBox="0 0 72 72" aria-hidden="true"><rect x="14" y="14" width="44" height="44" rx="8" style="fill:var(--chip)"/>${[22,32,42,50].map(v => `<rect x="${v-2}" y="6" width="4" height="8" style="fill:var(--m1)"/><rect x="${v-2}" y="58" width="4" height="8" style="fill:var(--m1)"/><rect x="6" y="${v-2}" width="8" height="4" style="fill:var(--m1)"/><rect x="58" y="${v-2}" width="8" height="4" style="fill:var(--m1)"/>`).join('')}<rect x="24" y="24" width="24" height="24" rx="4" style="fill:var(--oxide)"/></svg>
+      <div><div class="meta">晶片研究室認證</div><div class="ttl">${title(sc)}</div><div class="meta">${whoText(P)} · 一次成功的任務 ${firstOk} / ${ITEMS.length}</div></div>
+    </div>
+    <p class="ask">這趟旅程你學會了：</p>
+    <div class="recap">${recap}</div>
+    <p class="ask">還有時間嗎？晶片小八藏了一個彩蛋關：</p>
+    <div class="actions" style="margin-top:0">
+      <button class="btn ghost" type="button" data-bonus="k33small">彩蛋：再縮小一點</button>
+    </div>
+  </div></div>`);
+  document.querySelectorAll('[data-bonus]').forEach(b => b.onclick = () => { bonusMode = true; startLevel(b.dataset.bonus); });
+  store.del(PKEY);
+}
+
+/* ================= 接導線引擎 ================= */
+const MAXL = 5, MCOL = ['--m1','--m2','--m3','--m4','--m5'], SZ = 100;
+const mc = k => `var(${MCOL[k]})`;
+let S = null;
+const L = () => LV[S.key];
+const cellOf = (x,y) => y*L().W + x;
+const xy = c => [c % L().W, Math.floor(c / L().W)];
+let skipTimer = null, peekTimer = null;
+
+function startLevel(key){
+  const lv = LV[key];
+  S = { key, layers:[[]], cur:0, drawing:null, sparks:0, nodeAt:{}, finished:false, canSkip:false,
+        allow: lv.layers === 'yes' || (lv.layers === 'gated' && !!(A.q3 && A.q3.solved)) };
+  S.nudge = lv.layers === 'yes';
+  for (const [k,[x,y]] of Object.entries(lv.nodes)) S.nodeAt[y*lv.W + x] = k;
+  $('cardView').hidden = true; $('cardView').innerHTML = ''; $('gameView').hidden = false;
+  clearTimeout(skipTimer);
+  if (!bonusMode && key !== 'practice') skipTimer = setTimeout(() => { if (S.key === key && !S.finished){ S.canSkip = true; renderTask(); } }, 150000);
+  clearTimeout(peekTimer);
+  if (bonusMode && SOLUTIONS[key]) peekTimer = setTimeout(() => { if (S.key === key && !S.finished){ S.canPeek = true; renderTask(); } }, 120000);
+  closeOverlay(); renderAll(); window.scrollTo(0,0);
+}
+const netIndex = (a,b) => L().nets.findIndex(([p,q]) => (p===a&&q===b)||(p===b&&q===a));
+function wireOf(i){ for (let k=0;k<S.layers.length;k++){ const w = S.layers[k].find(w => w.net===i); if (w) return {k,w}; } return null; }
+const remaining = key => L().nets.map((n,i) => [n,i]).filter(([n,i]) => n.includes(key) && !wireOf(i));
+function occupant(layer, c){ for (const w of S.layers[layer]) if (w.path.slice(1,-1).includes(c)) return w; return null; }
+function stats(){
+  let len = 0, used = 0, done = 0;
+  S.layers.forEach((ws,k) => { ws.forEach(w => { len += w.path.length - 1; done++; }); if (ws.length) used = k+1; });
+  return { len, used: Math.max(used,1), done, total:L().nets.length };
+}
+
+const board = $('board');
+board.innerHTML = '<g id="gB"></g><g id="gFx"></g>';
+const center = c => { const [x,y] = xy(c); return [x*SZ+SZ/2, y*SZ+SZ/2]; };
+const pts = path => path.map(c => center(c).join(',')).join(' ');
+
+function renderBoard(){
+  const lv = L(), W = lv.W, H = lv.H;
+  board.setAttribute('viewBox', `-8 -8 ${W*SZ+16} ${H*SZ+16}`);
+  let s = `<rect x="-6" y="-6" width="${W*SZ+12}" height="${H*SZ+12}" rx="18" style="fill:var(--si);stroke:var(--si-edge);stroke-width:3"/>`;
+  for (let x=1;x<W;x++) s += `<line x1="${x*SZ}" y1="0" x2="${x*SZ}" y2="${H*SZ}" style="stroke:var(--si-grid);stroke-width:2"/>`;
+  for (let y=1;y<H;y++) s += `<line x1="0" y1="${y*SZ}" x2="${W*SZ}" y2="${y*SZ}" style="stroke:var(--si-grid);stroke-width:2"/>`;
+  for (let c=0;c<W*H;c++){ if (S.nodeAt[c]) continue; const [cx,cy] = center(c); s += `<circle cx="${cx}" cy="${cy}" r="4" style="fill:var(--si-grid)"/>`; }
+  S.layers.forEach((ws,k) => { if (k===S.cur) return; ws.forEach(w => {
+    s += `<polyline points="${pts(w.path)}" fill="none" style="stroke:${mc(k)};stroke-width:14;stroke-linecap:round;stroke-linejoin:round;opacity:.3"/>`; }); });
+  S.layers[S.cur].forEach(w => {
+    s += `<polyline points="${pts(w.path)}" fill="none" style="stroke:${mc(S.cur)};stroke-width:30;stroke-linecap:round;stroke-linejoin:round"/>`;
+    s += `<polyline points="${pts(w.path)}" fill="none" style="stroke:var(--panel);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;opacity:.45"/>`;
+  });
+  if (S.drawing && S.drawing.path.length > 1)
+    s += `<polyline points="${pts(S.drawing.path)}" fill="none" style="stroke:${mc(S.cur)};stroke-width:30;stroke-linecap:round;stroke-linejoin:round;opacity:.75"/>`;
+  const targets = S.drawing ? remaining(S.drawing.from).map(([n]) => n[0]===S.drawing.from ? n[1] : n[0]) : [];
+  for (const [k,[x,y]] of Object.entries(lv.nodes)){
+    const cx = x*SZ+SZ/2, cy = y*SZ+SZ/2, all = remaining(k).length === 0, isSrc = S.drawing && S.drawing.from === k;
+    if (targets.includes(k)) s += `<rect class="pulse" x="${cx-44}" y="${cy-44}" width="88" height="88" rx="18" style="fill:none;stroke:${mc(S.cur)};stroke-width:6"/>`;
+    s += `<rect x="${cx-34}" y="${cy-34}" width="68" height="68" rx="12" style="fill:${isSrc ? mc(S.cur) : 'var(--chip)'};stroke:var(--panel);stroke-width:4"/>`;
+    s += `<rect x="${cx-22}" y="${cy+20}" width="44" height="5" rx="2" style="fill:var(--chip-ink);opacity:.35"/>`;
+    s += `<text x="${cx}" y="${cy+3}" text-anchor="middle" dominant-baseline="middle" style="fill:var(--chip-ink);font:700 38px var(--f-mono)">${k}</text>`;
+    if (all) s += `<circle cx="${cx+30}" cy="${cy-30}" r="13" style="fill:var(--ok);stroke:var(--panel);stroke-width:3"/><path d="M${cx+24} ${cy-30} l4 5 l8 -10" fill="none" style="stroke:#fff;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round"/>`;
+  }
+  $('gB').innerHTML = s;
+}
+function spark(c){
+  const [cx,cy] = center(c);
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  let p = '';
+  for (let i=0;i<8;i++){ const a = i*Math.PI/4, r1 = i%2?20:14, r2 = i%2?48:36; p += `M${cx+Math.cos(a)*r1} ${cy+Math.sin(a)*r1} L${cx+Math.cos(a)*r2} ${cy+Math.sin(a)*r2} `; }
+  g.innerHTML = `<g class="zap"><circle cx="${cx}" cy="${cy}" r="22" style="fill:var(--danger);opacity:.85"/><path d="${p}" style="stroke:var(--danger);stroke-width:7;stroke-linecap:round" fill="none"/></g>`;
+  $('gFx').appendChild(g); setTimeout(() => g.remove(), 600);
+}
+let toastT;
+function toast(msg, bad){ const t = $('toast'); t.textContent = msg; t.classList.toggle('bad', !!bad); t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400); }
+
+function cellFromEvent(e){
+  const pt = board.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  const m = board.getScreenCTM(); if (!m) return -1;
+  const p = pt.matrixTransform(m.inverse());
+  const x = Math.floor(p.x / SZ), y = Math.floor(p.y / SZ);
+  if (x<0||y<0||x>=L().W||y>=L().H) return -1;
+  return cellOf(x,y);
+}
+let pendingDel = null;
+board.addEventListener('pointerdown', e => {
+  if (!S || S.finished) return;
+  const c = cellFromEvent(e); if (c < 0) return;
+  const k = S.nodeAt[c];
+  if (k){
+    if (!remaining(k).length){ toast(`${k} 要接的導線都接好了`); return; }
+    S.drawing = { from:k, path:[c], zapped:false };
+    board.setPointerCapture(e.pointerId); renderBoard(); return;
+  }
+  const w = occupant(S.cur, c); if (w) pendingDel = { w, c };
+});
+board.addEventListener('pointermove', e => { if (!S || !S.drawing) return; const c = cellFromEvent(e); if (c >= 0) extendTo(c); });
+board.addEventListener('pointerup', e => {
+  if (!S) return;
+  if (S.drawing){
+    if (S.drawing.path.length > 1 && !S.drawing.zapped) toast('導線要從一個電晶體一路接到另一個電晶體才算接好喔');
+    S.drawing = null; renderBoard();
+  } else if (pendingDel){
+    if (cellFromEvent(e) === pendingDel.c){
+      const ws = S.layers[S.cur]; ws.splice(ws.indexOf(pendingDel.w), 1);
+      const [a,b] = L().nets[pendingDel.w.net]; toast(`拆掉了 ${a}–${b} 導線`); renderAll();
+    }
+  }
+  pendingDel = null;
+});
+board.addEventListener('pointercancel', () => { if (S){ S.drawing = null; renderBoard(); } pendingDel = null; });
+
+function extendTo(target){
+  const d = S.drawing; let guard = 0;
+  while (S.drawing && guard++ < 40){
+    const path = d.path, last = path[path.length-1];
+    if (last === target) break;
+    const idx = path.indexOf(target);
+    if (idx >= 0){ path.length = idx + 1; break; }
+    const [lx,ly] = xy(last), [tx,ty] = xy(target), dx = tx-lx, dy = ty-ly;
+    const step = Math.abs(dx) >= Math.abs(dy) ? cellOf(lx+Math.sign(dx), ly) : cellOf(lx, ly+Math.sign(dy));
+    if (!tryStep(step)) break;
+  }
+  renderBoard();
+}
+function tryStep(n){
+  const d = S.drawing, k = S.nodeAt[n];
+  if (k){
+    if (k === d.from) return false;
+    const i = netIndex(d.from, k);
+    if (i >= 0 && !wireOf(i)){
+      d.path.push(n); S.layers[S.cur].push({ net:i, path:d.path.slice() }); S.drawing = null; sfx('ok'); afterChange(); return false;
+    }
+    d.zapped = true; toast(i >= 0 ? `${d.from}–${k} 已經接好了` : `${d.from} 不用接到 ${k}，這裡不能穿過去`, true);
+    return false;
+  }
+  if (occupant(S.cur, n)){
+    spark(n); sfx('zap'); S.sparks++; d.zapped = true;
+    if (S.key === 'wall' && !bonusMode){ extra.sparksWall = (extra.sparksWall || 0) + 1; save(); }
+    if (S.allow && S.layers.length < MAXL){
+      S.nudge = true;
+      toast('短路了！按粉紅色的「＋」按鈕，鋪一層不導電材料往上蓋', true);
+      renderHud(); renderLayers();
+    } else toast('滋滋！短路了，同一層的導線不能碰在一起', true);
+    if (S.key === 'wall' && !S.allow && S.sparks === 2) setTimeout(openWallChoice, 500);
+    return false;
+  }
+  d.path.push(n); return true;
+}
+function afterChange(){
+  renderAll();
+  const st = stats();
+  if (st.done === st.total){ S.finished = true; clearTimeout(skipTimer); setTimeout(showLevelDone, 450); }
+}
+
+function isoSVG(lv, layers, big){
+  const W = lv.W, H = lv.H;
+  const used = Math.max(1, layers.reduce((m,ws,k) => ws.length ? k+1 : m, 0), layers.length);
+  const s = big ? 34 : 30, cw = s*0.866, ch = s*0.5, gap = big ? 36 : 30, thick = 16;
+  const P3 = (x,y,z) => [ (x-y)*cw, (x+y)*ch - z ];
+  const poly = a => a.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
+  const minX = -H*cw - 6, maxX = W*cw + 70, minY = -used*gap - 14, maxY = (W+H)*ch + thick + 8;
+  let o = `<svg viewBox="${minX} ${minY} ${maxX-minX} ${maxY-minY}" role="img" aria-label="晶片側視堆疊圖，共 ${used} 層導線">`;
+  o += `<polygon points="${poly([P3(0,H,0),P3(W,H,0),P3(W,H,-thick),P3(0,H,-thick)])}" style="fill:var(--si-grid)"/>`;
+  o += `<polygon points="${poly([P3(W,0,0),P3(W,H,0),P3(W,H,-thick),P3(W,0,-thick)])}" style="fill:var(--si-edge)"/>`;
+  o += `<polygon points="${poly([P3(0,0,0),P3(W,0,0),P3(W,H,0),P3(0,H,0)])}" style="fill:var(--si);stroke:var(--si-edge);stroke-width:1"/>`;
+  for (const [k,[x,y]] of Object.entries(lv.nodes))
+    o += `<polygon points="${poly([P3(x+.18,y+.18,0),P3(x+.82,y+.18,0),P3(x+.82,y+.82,0),P3(x+.18,y+.82,0)])}" style="fill:var(--chip)"/>`;
+  const cxy = c => [c % W + .5, Math.floor(c / W) + .5];
+  const viaSeg = k => { let v = '';
+    layers.forEach((ws,j) => { if (j < k) return; ws.forEach(w => { for (const c of [w.path[0], w.path[w.path.length-1]]){
+      const [x,y] = cxy(c), a = P3(x,y,k*gap), b = P3(x,y,(k+1)*gap);
+      v += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" style="stroke:var(--muted);stroke-width:${big?3:2.4}"/>`; } }); });
+    return v; };
+  for (let k=0;k<used;k++){
+    const z = (k+1)*gap;
+    o += viaSeg(k);
+    o += `<polygon points="${poly([P3(0,H,z),P3(W,H,z),P3(W,H,z-5),P3(0,H,z-5)])}" style="fill:var(--oxide);opacity:.55"/>`;
+    o += `<polygon points="${poly([P3(W,0,z),P3(W,H,z),P3(W,H,z-5),P3(W,0,z-5)])}" style="fill:var(--oxide);opacity:.7"/>`;
+    o += `<polygon points="${poly([P3(0,0,z),P3(W,0,z),P3(W,H,z),P3(0,H,z)])}" style="fill:var(--oxide);opacity:.28;stroke:var(--oxide);stroke-width:1"/>`;
+    (layers[k] || []).forEach(w => { const p = w.path.map(c => { const [x,y] = cxy(c); return P3(x,y,z); });
+      o += `<polyline points="${poly(p)}" fill="none" style="stroke:${mc(k)};stroke-width:${big?5:4};stroke-linecap:round;stroke-linejoin:round"/>`; });
+    const lp = P3(W, H/2, z);
+    o += `<text x="${lp[0]+22}" y="${lp[1]+4}" style="fill:${mc(k)};font:700 13px var(--f-mono)">M${k+1}</text>`;
+  }
+  const bp = P3(W, H/2, -thick/2);
+  o += `<text x="${bp[0]+22}" y="${bp[1]+4}" style="fill:var(--muted);font:700 12px var(--f-mono)">Si</text>`;
+  return o + '</svg>';
+}
+
+function renderTask(){
+  const lv = L();
+  let h = `<p class="lvName"><small>${bonusMode ? '彩蛋關' : S.key === 'practice' ? '熱身' : '任務關卡'}</small>${lv.name}</p>${talk(lv.who, lv.line, '', true)}`;
+  h += `<p class="how">按住電晶體，沿著格子拖到要接的電晶體再放開。點一下畫好的導線可以拆掉。</p>`;
+  const acts = [];
+  if (S.key === 'wall' && !S.allow && !bonusMode) acts.push(`<button class="btn" type="button" id="wallBtn">我想到辦法了！</button>`);
+  if (bonusMode && S.canPeek && !S.finished) acts.push(`<button class="btn" type="button" id="peekBtn">想不出來？看答案</button>`);
+  if (bonusMode) acts.push(`<button class="btn ghost" type="button" id="backRes">回到工程師證</button>`);
+  if (S.canSkip && !S.finished) acts.push(`<button class="btn ghost" type="button" id="skipBtn">卡住了，請晶片小八幫忙接好</button>`);
+  if (acts.length) h += `<div class="actions" style="margin-top:12px">${acts.join('')}</div>`;
+  $('task').innerHTML = h;
+  const wb = $('wallBtn'); if (wb) wb.onclick = openWallChoice;
+  const br = $('backRes'); if (br) br.onclick = renderResult;
+  const pk = $('peekBtn'); if (pk) pk.onclick = () => showSolution(S.key, null);
+  const sk = $('skipBtn'); if (sk) sk.onclick = skipLevel;
+}
+function renderNets(){
+  $('nets').innerHTML = L().nets.map(([a,b],i) => { const f = wireOf(i);
+    return `<div class="net ${f?'done':''}"><span class="sw" style="${f?`background:${mc(f.k)}`:''}"></span>${a}–${b}${f?`<span class="ly">M${f.k+1}</span>`:''}</div>`; }).join('');
+}
+function renderLayers(){
+  let h = '';
+  if (S.allow){
+    for (let k=S.layers.length-1;k>=0;k--)
+      h += `<button type="button" class="layerTab ${k===S.cur?'on':''}" data-k="${k}"><span class="sw" style="background:${mc(k)}"></span>第 ${k+1} 層導線<span class="tag">M${k+1} · ${S.layers[k].length} 條</span></button>`;
+    const n = S.layers.length;
+    h += `<button type="button" class="btn oxide${S.nudge && n < MAXL ? ' nudge' : ''}" id="addL" ${n>=MAXL?'disabled':''}>${n>=MAXL?'最多蓋到第 5 層':`鋪一層不導電材料，蓋第 ${n+1} 層`}</button>`;
+    if (n > 1 && !S.layers[n-1].length) h += `<button type="button" class="btn ghost" id="rmL">拆掉空的第 ${n} 層</button>`;
+  } else {
+    h += `<div class="layerTab on"><span class="sw" style="background:${mc(0)}"></span>第 1 層導線<span class="tag">M1 · ${S.layers[0].length} 條</span></div><p class="small" style="margin:4px 0 0">目前只能在這一層畫導線。</p>`;
+  }
+  $('layers').innerHTML = h;
+  $('layers').querySelectorAll('[data-k]').forEach(b => b.onclick = () => { S.cur = +b.dataset.k; renderAll(); });
+  const a = $('addL'); if (a) a.onclick = addLayer;
+  const r = $('rmL'); if (r) r.onclick = () => { S.layers.pop(); S.cur = Math.min(S.cur, S.layers.length-1); renderAll(); };
+}
+function addLayer(){ if (S.layers.length >= MAXL) return; S.nudge = false; S.layers.push([]); S.cur = S.layers.length-1; sfx('tap'); toast(`鋪好不導電材料了，現在在第 ${S.cur+1} 層畫導線`); renderAll(); }
+function renderHud(){
+  const st = stats(); $('hDone').textContent = `${st.done}/${st.total}`; $('hLen').textContent = st.len; $('hLayers').textContent = st.used;
+  const top = $('addTop'), n = S.layers.length;
+  top.hidden = !S.allow || n >= MAXL || S.finished;
+  top.textContent = `鋪不導電材料，蓋第 ${n + 1} 層`;
+  top.classList.toggle('nudge', !!S.nudge);
+}
+$('addTop').onclick = () => { if (S && S.allow) addLayer(); };
+function renderAll(){ renderMap(); renderTask(); renderNets(); renderLayers(); renderHud(); renderBoard(); $('iso').innerHTML = isoSVG(L(), S.layers, false); }
+
+function openWallChoice(){
+  if (S.allow || !$('overlay').hidden) return;
+  openOverlay(sceneHTML('q3'));
+  bindScene('q3', $('dialog'), () => { A.q3.solved = true; save(); S.allow = true; closeOverlay(); addLayer(); }, '鋪一層不導電材料，蓋第 2 層');
+}
+function skipLevel(){
+  clearTimeout(skipTimer);
+  extra.skipped = (extra.skipped || []).concat(LV[S.key].name);
+  if (S.key === 'cross3'){ A.q4b = { ans:'跳過', pts:0, layers:'' }; givePart('m2'); }
+  if (S.key === 'detour') givePart('m1');
+  if (S.key === 'wall'){ if (!A.q3) A.q3 = { ans:'跳過', pts:0 }; givePart('ox1'); }
+  if (S.key === 'k33big'){ A.k33 = { ans:'跳過', pts:0, layers:'' }; save(); return showSolution('k33big', null); }
+  save(); next();
+}
+function showLevelDone(){
+  const lv = L(), st = stats();
+  if (!bonusMode){
+    if (S.key === 'cross3') A.q4b = { ans:'完成', pts:10, layers:st.used };
+    if (S.key === 'k33big') A.k33 = { ans:'完成', pts:10, layers:st.used };
+    if (S.key === 'detour') extra.detourLen = st.len;
+    save();
+  }
+  const r = lv.done(st);
+  if (r.part && !bonusMode) givePart(r.part);
+  sfx(r.part && !bonusMode ? 'gain' : 'win');
+  openOverlay(`<div class="place">${lv.name} · 接好了！</div><div class="sceneBody">
+    <div class="dlgGrid">
+      <div>${talk(r.img, r.text, 'ok', true)}${r.part && !bonusMode ? gainHTML(r.part) : ''}
+        <div class="stats"><div class="h">導線層數</div><div class="h">導線總長</div><div class="n">${st.used} 層</div><div class="n">${st.len} 格</div></div></div>
+      <div>${isoSVG(lv, S.layers, true)}</div>
+    </div>
+    <div class="actions">${SOLUTIONS[S.key] ? '<button class="btn big" type="button" id="seeSol">看最佳解答</button>' : ''}<button class="btn ${SOLUTIONS[S.key] ? 'ghost' : 'big'}" type="button" id="dn">${bonusMode ? '回到工程師證' : '繼續前進'}</button></div></div>`);
+  $('dn').onclick = () => { if (bonusMode) renderResult(); else next(); };
+  const ss = $('seeSol'); if (ss) ss.onclick = () => showSolution(S.key, st);
+}
+
+function miniBoard(lv, ws, k){
+  const s = 44, W = lv.W, H = lv.H, c = cell => [(cell % W) * s + s/2, Math.floor(cell / W) * s + s/2];
+  let o = `<svg viewBox="-4 -4 ${W*s+8} ${H*s+8}" role="img" aria-label="第 ${k+1} 層導線">`;
+  o += `<rect x="-2" y="-2" width="${W*s+4}" height="${H*s+4}" rx="8" style="fill:var(--si);stroke:var(--si-edge);stroke-width:2"/>`;
+  for (let x = 1; x < W; x++) o += `<line x1="${x*s}" y1="0" x2="${x*s}" y2="${H*s}" style="stroke:var(--si-grid);stroke-width:1"/>`;
+  for (let y = 1; y < H; y++) o += `<line x1="0" y1="${y*s}" x2="${W*s}" y2="${y*s}" style="stroke:var(--si-grid);stroke-width:1"/>`;
+  ws.forEach(w => { o += `<polyline points="${w.path.map(q => c(q).join(',')).join(' ')}" fill="none" style="stroke:${mc(k)};stroke-width:12;stroke-linecap:round;stroke-linejoin:round"/>`; });
+  for (const [name, [x, y]] of Object.entries(lv.nodes)){
+    const cx = x*s + s/2, cy = y*s + s/2;
+    o += `<rect x="${cx-15}" y="${cy-15}" width="30" height="30" rx="6" style="fill:var(--chip)"/><text x="${cx}" y="${cy+1}" text-anchor="middle" dominant-baseline="middle" style="fill:var(--chip-ink);font:700 16px var(--f-mono)">${name}</text>`;
+  }
+  const names = ws.map(w => L2(lv, w.net)).join('、');
+  return `<figure class="solFig">${o}</svg><figcaption><b style="color:${mc(k)}">第 ${k+1} 層</b>（${ws.length} 條）<br>${names}</figcaption></figure>`;
+}
+const L2 = (lv, i) => lv.nets[i].join('–');
+function showSolution(key, mine){
+  const lv = LV[key], d = SOLUTIONS[key];
+  const layers = Array.from({ length:d.minL }, () => []);
+  d.sol.forEach(([i, k, path]) => layers[k].push({ net:i, path }));
+  const cmp = mine ? `你用了 ${mine.used} 層、${mine.len} 格。` : '';
+  openOverlay(`<div class="place">${lv.name} · 最佳解答</div><div class="sceneBody">
+    ${talk('bot_happy', `這是最省的接法：最少 ${d.minL} 層，導線加起來最短 ${d.len} 格。${cmp}一層一層看，同一層的導線都不會碰到，交錯的地方都分在不同層！`, 'ok', true)}
+    <div class="solGrid">${layers.map((ws, k) => miniBoard(lv, ws, k)).join('')}</div>
+    <p class="small" style="text-align:center;margin:10px 0 0">疊起來就是這樣：</p>
+    <div class="solIso">${isoSVG(lv, layers, true)}</div>
+    <div class="actions">${bonusMode ? '<button class="btn big" type="button" id="solAgain">我也來試試</button><button class="btn ghost" type="button" id="solBack">回到工程師證</button>' : '<button class="btn big" type="button" id="solNext">繼續前進</button>'}</div></div>`);
+  const sa = $('solAgain'); if (sa) sa.onclick = () => { closeOverlay(); startLevel(key); };
+  const sb = $('solBack'); if (sb) sb.onclick = () => renderResult();
+  const sn = $('solNext'); if (sn) sn.onclick = () => next();
+}
+
+function openOverlay(html){ $('dialog').innerHTML = html; $('overlay').hidden = false; const b = $('dialog').querySelector('button'); if (b) b.focus(); }
+function closeOverlay(){ $('overlay').hidden = true; $('dialog').innerHTML = ''; }
+
+$('undo').onclick = () => {
+  if (!S || S.finished) return;
+  let k = S.cur; if (!S.layers[k].length) k = S.layers.map(w => w.length).reduce((m,v,i) => v ? i : m, -1);
+  if (k < 0) return toast('還沒有導線可以復原');
+  const w = S.layers[k].pop(); const [a,b] = L().nets[w.net]; toast(`復原：拆掉 ${a}–${b}`); renderAll();
+};
+$('reset').onclick = () => { if (S && !S.finished) startLevel(S.key); };
+
+/* ================= 啟動 ================= */
+try { new URLSearchParams(location.search).forEach((v, k) => { params[k] = v; }); } catch(e){}
+renderStart();
+})();
+</script>

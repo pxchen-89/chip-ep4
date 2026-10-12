@@ -1,0 +1,598 @@
+<title>導線走線大師 · 老師投影</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Layout：投影幕舞台。深藍底，大字。大廳＝左 QR、右房間代碼與名單；排行榜＝上方狀態列＋每人一列的時空地圖進度；頒獎台＝三根柱子。只有一種深色外觀，方便投影。 */
+:root{
+  --bg:#10143a; --bg2:#1a2160; --panel:#1d2458; --line:#323b7e; --ink:#f3f4ff; --muted:#a7aedb;
+  --navy:#8fa2ff; --accent:#ffd166; --oxide:#e48fcb; --si:#c9cfe4; --chip:#2b3f8a;
+  --m1:#f2b733; --m2:#2fd0bd; --ok:#4ccf86; --danger:#ff6a52;
+  --gold:#ffcc3d; --silver:#cfd6e6; --bronze:#e0995e;
+  --f-display:"Chiron GoRound TC","Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;
+  --f-body:"Noto Sans TC","Microsoft JhengHei","PingFang TC",-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(1200px 700px at 80% -10%,var(--bg2),var(--bg));color:var(--ink);font-family:var(--f-body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+[hidden]{display:none!important}
+.wrap{min-height:100%;padding:clamp(16px,2.4vw,36px);display:flex;flex-direction:column;gap:clamp(14px,2vh,24px)}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px}
+.brand .eb{font-family:var(--f-mono);font-size:13px;letter-spacing:.16em;color:var(--muted)}
+.brand h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(26px,3vw,40px);letter-spacing:.06em}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font:inherit;font-weight:700;font-size:17px;border-radius:14px;padding:11px 20px;cursor:pointer;border:2px solid var(--navy);background:var(--navy);color:#10143a}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--navy)}
+.btn.huge{font-family:var(--f-display);font-size:clamp(26px,3vw,40px);padding:16px 48px;border-radius:20px;background:var(--accent);border-color:var(--accent);color:#10143a;letter-spacing:.08em}
+.btn.danger{border-color:var(--danger);color:var(--danger);background:transparent}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:focus-visible,.chipName:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.stat{display:flex;flex-direction:column;align-items:center;line-height:1.1;min-width:84px}
+.stat b{font-family:var(--f-mono);font-size:clamp(24px,2.6vw,36px);font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted);letter-spacing:.08em}
+.pinMini{font-family:var(--f-mono);font-weight:700;font-size:clamp(20px,2vw,28px);letter-spacing:.2em;color:var(--accent)}
+
+/* 首頁 */
+.home{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}
+.home img{width:150px;height:150px;border-radius:26px;object-fit:cover;border:4px solid var(--line)}
+.home p{margin:0;color:var(--muted);font-size:18px;max-width:40ch;line-height:1.7}
+.note{color:var(--muted);font-size:15px}
+.note.warn{color:var(--accent)}
+
+/* 大廳 */
+.lobby{--qr:min(66vh,46vw);flex:1;display:flex;align-items:center;justify-content:center;gap:clamp(24px,4vw,72px);min-height:0}
+@media (max-width:900px){.lobby{--qr:min(80vw,60vh);flex-direction:column}}
+.qrCard{background:#fff;border-radius:28px;padding:clamp(16px,1.6vw,26px);display:flex;flex-direction:column;align-items:center;gap:10px;color:#10143a;flex:none}
+.qrCard .qr img,.qrCard .qr canvas{width:var(--qr)!important;height:auto!important;image-rendering:pixelated}
+.qrCard .u{font-family:var(--f-mono);font-size:clamp(14px,1.2vw,18px);text-align:center;word-break:break-all;max-width:var(--qr)}
+.lobbyInfo{display:flex;flex-direction:column;min-width:0;max-width:600px;max-height:calc(100vh - 175px)}
+.lobbyInfo .chips{overflow:auto;min-height:48px;padding:2px}
+.pinBox .lab{font-size:clamp(18px,1.8vw,26px);color:var(--muted)}
+.pinBox .pin{font-family:var(--f-mono);font-weight:700;font-size:clamp(80px,10vw,180px);letter-spacing:.12em;line-height:1;color:var(--accent)}
+.pinBox .how{font-size:clamp(17px,1.6vw,22px);color:var(--ink);margin:10px 0 0;line-height:1.6}
+.joined{display:flex;align-items:baseline;gap:12px;margin:24px 0 12px;font-family:var(--f-display);font-size:clamp(22px,2.2vw,30px);font-weight:900}
+.joined b{font-family:var(--f-mono);font-size:1.4em;color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chipName{font:inherit;font-size:clamp(17px,1.6vw,22px);font-weight:700;color:var(--ink);background:var(--panel);border:2px solid var(--line);border-radius:999px;padding:8px 18px;cursor:pointer}
+.chipName.confirm{border-color:var(--danger);color:var(--danger)}
+.lobbyAct{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:26px}
+
+/* 排行榜 */
+.boardHead,.row{display:grid;grid-template-columns:64px minmax(0,1.3fr) minmax(0,2.6fr) 120px 110px;gap:14px;align-items:center}
+.boardHead{font-size:15px;color:var(--muted);letter-spacing:.04em;padding:0 16px}
+.stopsHead{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));text-align:center}
+.stopsHead span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stopsHead em{display:none;font-style:normal;font-family:var(--f-mono);font-weight:700}
+.stopsHead b{font-weight:500}
+@media (max-width:1100px){.stopsHead em{display:inline}.stopsHead b{display:none}}
+.rows{position:relative;display:flex;flex-direction:column;gap:8px}
+.row{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:10px 16px;min-height:62px}
+.row .rk{font-family:var(--f-display);font-weight:900;font-size:28px;text-align:center;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--bg);margin:auto}
+.row:nth-child(1) .rk{background:var(--gold);color:#10143a}
+.row:nth-child(2) .rk{background:var(--silver);color:#10143a}
+.row:nth-child(3) .rk{background:var(--bronze);color:#10143a}
+.row .nm{font-family:var(--f-display);font-weight:900;font-size:clamp(20px,2vw,28px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.row .nm small{display:block;font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted)}
+.row .nm.confirm{color:var(--danger)}
+.track{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));align-items:center}
+.track i{height:12px;background:var(--line);position:relative}
+.track i:first-child{border-radius:6px 0 0 6px}.track i:last-child{border-radius:0 6px 6px 0}
+.track i.on{background:var(--ok)}
+.track i.now{background:var(--accent)}
+.track i.now::after{content:"";position:absolute;right:-9px;top:50%;width:22px;height:22px;margin-top:-11px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 6px rgba(255,209,102,.25)}
+.track.fin i{background:var(--ok)}
+.parts{display:flex;gap:4px}
+.parts span{width:18px;height:18px;border-radius:5px;border:2px dashed var(--line)}
+.parts span.got{border:none}
+.score{font-family:var(--f-mono);font-weight:700;font-size:clamp(24px,2.4vw,34px);text-align:right;font-variant-numeric:tabular-nums}
+.done{display:inline-block;font-size:12px;font-weight:700;color:#10143a;background:var(--ok);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+.rows.compact .row{min-height:44px;padding:6px 14px}
+.rows.compact .row .rk{width:34px;height:34px;font-size:20px}
+.rows.compact .row .nm{font-size:20px}
+.rows.compact .score{font-size:22px}
+.rows.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-flow:column;gap:8px 16px}
+.rows.two .row{grid-template-columns:40px minmax(0,1fr) minmax(0,1.6fr) 80px}
+.rows.two .parts{display:none}
+.boardHead.two{display:none}
+.empty{color:var(--muted);text-align:center;padding:40px;font-size:20px}
+.legend{font-size:14px;color:var(--muted)}
+
+/* 頒獎台 */
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:clamp(12px,2vw,28px);margin-top:10px;min-height:46vh}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(26vw,260px)}
+.col .who{font-family:var(--f-display);font-weight:900;font-size:clamp(22px,2.6vw,36px);text-align:center;opacity:0;transform:translateY(10px);transition:.5s}
+.col .pts{font-family:var(--f-mono);font-weight:700;font-size:clamp(18px,2vw,26px);color:var(--muted);opacity:0;transition:.5s}
+.col .bar{width:100%;border-radius:18px 18px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:14px;font-family:var(--f-display);font-weight:900;font-size:clamp(40px,5vw,72px);color:#10143a;height:0;transition:height 1s cubic-bezier(.2,.9,.3,1.2)}
+.col.p1 .bar{background:var(--gold)} .col.p2 .bar{background:var(--silver)} .col.p3 .bar{background:var(--bronze)}
+.col.show .who,.col.show .pts{opacity:1;transform:none}
+.rest{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:18px}
+.rest span{background:var(--panel);border-radius:12px;padding:6px 14px;font-size:17px}
+.rest span b{font-family:var(--f-mono);color:var(--muted);margin-right:8px}
+.statCard{background:var(--panel);border:2px solid var(--line);border-radius:22px;padding:22px 26px;width:min(1100px,100%);max-height:calc(100vh - 32px);overflow:auto}
+.statHead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px 24px}
+.statHead h2{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(24px,2.6vw,34px);letter-spacing:.04em}
+.statHead p{margin:6px 0 0;color:var(--muted);font-size:16px;max-width:52ch}
+.statTable{width:100%;border-collapse:collapse;margin-top:16px;font-size:clamp(16px,1.5vw,20px)}
+.statTable th{font-size:14px;color:var(--muted);font-weight:500;text-align:left;padding:8px 10px;border-bottom:2px solid var(--line)}
+.statTable td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.statTable td small{display:block;color:var(--muted);font-size:13px}
+.statTable .num{text-align:right;white-space:nowrap;font-family:var(--f-mono)}
+.statTable .num b{font-size:1.4em;color:var(--accent)}
+.pbar{display:inline-block;width:140px;height:12px;border-radius:6px;background:var(--bg);vertical-align:middle;overflow:hidden;margin-right:8px}
+.pbar i{display:block;height:100%;background:var(--ok);border-radius:6px}
+.pct{font-family:var(--f-mono);font-size:15px;color:var(--muted)}
+.statTable .wrong{color:var(--muted);font-size:15px}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:5}
+
+.overlay{position:fixed;inset:0;background:rgba(5,8,30,.72);display:flex;align-items:center;justify-content:center;z-index:10;padding:16px}
+@media (prefers-reduced-motion: reduce){.col .bar,.col .who,.col .pts{transition:none}}
+</style>
+
+<div class="wrap" id="app"></div>
+<canvas id="confetti" hidden></canvas>
+<div class="overlay" id="ov" hidden></div>
+
+<script>
+(() => {
+{{LIVE_CORE}}
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+const BOT = '{{IMG:bot_happy}}';
+const STOPS = ['訓練場','1958 基爾比','1959 走廊','諾伊斯辦公室','晶片工廠','晶片設計室','晶片展示間','晶片研究室'];
+const PART_COLORS = ['var(--si)','var(--m1)','var(--oxide)','var(--m2)','var(--oxide)'];
+const HKEY = 'wm-host-room';
+const QMETA = [
+  { id:'q1',  short:'Q1',     label:'第 1 題 · 基爾比為什麼把零件做在同一塊半導體上' },
+  { id:'q2',  short:'Q2',     label:'第 2 題 · 導線繞路有什麼缺點' },
+  { id:'q3',  short:'Q3',     label:'第 3 題 · 幫諾伊斯想辦法（5×5 接好兩條線）' },
+  { id:'q4a', short:'Q4預測', label:'第 4 題 · 打賭：三條交叉導線最少要幾層' },
+  { id:'q4b', short:'Q4實作', label:'第 4 題 · 實際接好三條交叉導線', note:'完成就算' },
+  { id:'k33', short:'Q5',     label:'第 5 題 · 三井三屋：接好 9 條導線', note:'完成就算' },
+  { id:'q5',  short:'Q6',     label:'第 6 題 · 真實晶片為什麼有十幾層導線' },
+  { id:'q6',  short:'Q7',     label:'第 7 題 · 組裝晶片，第一次就排對', noBreakdown:true },
+];
+const mockQ = LIVE_MOCK ? 'mock=1' : '';
+const studentBase = () => location.origin + location.pathname.replace(/teacher\.html$/, '');
+const studentUrl = pin => studentBase() + '?room=' + pin + (mockQ ? '&' + mockQ : '');
+
+let be = null, uid = null, pin = null, room = null, players = [], view = 'home';
+let offRoom = null, offPlayers = null, offAnswers = null, timer = null;
+let answers = {}, statsOpen = false;   // 每位學生每題第一次的作答
+const reached = {};
+let frozen = null;   // 按下結束時的名次，頒獎台用這份，不再變動   // 老師這台看到某人分數上升的時間，用來決定同分名次
+
+/* ---------- 共用頂列 ---------- */
+function topBar(right){
+  return `<div class="top"><div class="brand"><div class="eb">晶片系列 EP4 · 時空任務 · 老師投影</div><h1>導線走線大師</h1></div><div class="tools">${right || ''}<button class="btn ghost" type="button" data-fs>全螢幕</button></div></div>`;
+}
+function bindTop(){
+  document.querySelectorAll('[data-fs]').forEach(b => b.onclick = () => {
+    try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch(e){}
+  });
+}
+
+/* ---------- 首頁 ---------- */
+function renderHome(msg){
+  view = 'home'; stopWatch();
+  const last = store.get(HKEY, null);
+  const canResume = last && last.createdAt > Date.now() - ROOM_TTL;
+  $('app').innerHTML = topBar() + `<div class="home">
+    <img src="${BOT}" alt="晶片小八">
+    <p>開一場即時挑戰：學生用平板掃 QR code 加入，投影幕上即時顯示每個人走到哪一站、收集了幾個零件。</p>
+    ${LIVE_ENABLED ? '' : '<p class="note warn">即時排行還沒有連上資料庫（Firebase 尚未設定），目前無法開房間。</p>'}
+    <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center">
+      <button class="btn huge" type="button" id="newRoom" ${LIVE_ENABLED ? '' : 'disabled'}>開新的一場</button>
+      ${canResume && LIVE_ENABLED ? `<button class="btn ghost" type="button" id="resumeRoom">回到房間 ${esc(last.pin)}</button>` : ''}
+    </div>
+    <p class="note" id="homeMsg">${esc(msg || '')}</p>
+  </div>`;
+  bindTop();
+  const n = $('newRoom'); if (n) n.onclick = createRoom;
+  const r = $('resumeRoom'); if (r) r.onclick = () => openRoom(last.pin);
+}
+
+async function ensureBackend(){
+  if (!be){ be = await liveBackend(); uid = await be.uid(); }
+}
+async function createRoom(){
+  const b = $('newRoom'); b.disabled = true; b.textContent = '準備中…';
+  try {
+    await ensureBackend();
+    for (let i = 0; i < 25; i++){
+      const p = String(1000 + Math.floor(Math.random() * 9000));
+      const now = Date.now();
+      if (await be.roomCreate(p, { host:uid, status:'lobby', createdAt:now, startedAt:0, endedAt:0 })){
+        store.set(HKEY, { pin:p, createdAt:now });
+        return openRoom(p);
+      }
+    }
+    throw new Error('busy');
+  } catch(e){
+    renderHome('開房間失敗，請檢查網路後再試一次。');
+  }
+}
+async function openRoom(p){
+  try { await ensureBackend(); } catch(e){ return renderHome('連不上資料庫，請檢查網路。'); }
+  pin = p; stopWatch();
+  offRoom = be.roomWatch(pin, r => {
+    if (r === undefined) return;
+    if (!r || r.host !== uid){ store.del(HKEY); return renderHome('這個房間已經不存在了。'); }
+    const prev = room ? room.status : null; room = r;
+    if (r.status === 'lobby' && view !== 'lobby') renderLobby();
+    else if (r.status === 'playing' && view !== 'board') renderBoard();
+    else if (r.status === 'ended' && prev !== 'ended' && view !== 'podium') renderPodium();
+    else refresh();
+  });
+  offPlayers = be.playersWatch(pin, list => {
+    if (!list) return;
+    const since = room ? room.createdAt : 0;
+    players = list.filter(p => (p.joinedAt || 0) >= since - 60000);
+    const now = Date.now();
+    players.forEach(p => { const r = reached[p.id]; if (!r || p.score > r.score) reached[p.id] = { score:p.score, at: r && p.score <= r.score ? r.at : now }; });
+    refresh();
+  });
+  answers = {};
+  watchAnswers(p);
+}
+// 作答紀錄的監聽如果被拒絕（例如規則還沒更新），每 5 秒重新試一次
+function watchAnswers(p){
+  if (offAnswers) offAnswers();
+  offAnswers = be.answersWatch(p, list => {
+    if (pin !== p) return;
+    if (list === undefined){ offAnswers = null; setTimeout(() => { if (pin === p && !offAnswers) watchAnswers(p); }, 5000); return; }
+    if (!list) return;
+    const since = room ? room.createdAt : 0;
+    answers = {};
+    list.forEach(a => { if ((a.updatedAt || 0) >= since - 60000) answers[a.id] = a; });
+    if (statsOpen) drawStats();
+  });
+}
+function stopWatch(){ if (offRoom) offRoom(); if (offPlayers) offPlayers(); if (offAnswers) offAnswers(); offRoom = offPlayers = offAnswers = null; statsOpen = false; clearInterval(timer); timer = null; }
+function refresh(){ if (view === 'lobby') drawLobbyList(); else if (view === 'board') drawBoard(); else if (view === 'podium' && (!frozen || !frozen.length) && players.length) drawPodium(true); }
+
+/* ---------- 移出學生（點兩下） ---------- */
+let armed = null;
+function askRemove(el, id, name){
+  if (armed !== id){
+    armed = id; el.classList.add('confirm'); const old = el.innerHTML; el.textContent = `移出 ${name}？再點一次`;
+    setTimeout(() => { if (armed === id){ armed = null; refresh(); } }, 3000);
+    return;
+  }
+  armed = null; be.playerDelete(pin, id).catch(() => {}); be.answerDelete(pin, id).catch(() => {});
+}
+
+/* ---------- 大廳 ---------- */
+function renderLobby(){
+  view = 'lobby';
+  $('app').innerHTML = topBar(`<button class="btn ghost" type="button" id="endEarly">取消這一場</button>`) + `<div class="lobby">
+    <div class="qrCard"><div class="qr" id="qr"></div><div class="u">${esc(studentUrl(pin).replace(/^https?:\/\//, ''))}</div></div>
+    <div class="lobbyInfo">
+      <div class="pinBox"><div class="lab">房間代碼</div><div class="pin">${esc(pin)}</div>
+        <p class="how">用平板掃 QR code 加入。<br>或打開 <b>${esc(studentBase().replace(/^https?:\/\//, ''))}</b>，輸入房間代碼。</p></div>
+      <div class="joined">已加入 <b id="joinN">0</b> 人</div>
+      <div class="chips" id="chips"></div>
+      <p class="legend" style="margin-top:10px">名字不恰當的話，點兩下那個名字就能把他移出房間。</p>
+      <div class="lobbyAct"><button class="btn huge" type="button" id="startBtn">開始！</button></div>
+    </div></div>`;
+  bindTop();
+  if (window.QRCode) new QRCode($('qr'), { text:studentUrl(pin), width:900, height:900, correctLevel:QRCode.CorrectLevel.M });
+  $('startBtn').onclick = () => { $('startBtn').disabled = true; be.roomUpdate(pin, { status:'playing', startedAt:Date.now() }).catch(() => { $('startBtn').disabled = false; }); };
+  $('endEarly').onclick = () => closeRoom(true, '已取消這一場，資料已刪除。');
+  drawLobbyList();
+}
+function drawLobbyList(){
+  const box = $('chips'); if (!box) return;
+  $('joinN').textContent = players.length;
+  const sorted = players.slice().sort((a,b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+  box.innerHTML = sorted.length ? sorted.map(p => `<button type="button" class="chipName" data-id="${esc(p.id)}">${esc(p.name)}</button>`).join('') : '<span class="note">等待學生加入…</span>';
+  box.querySelectorAll('.chipName').forEach(b => b.onclick = () => { const p = players.find(x => x.id === b.dataset.id); if (p) askRemove(b, p.id, p.name); });
+}
+
+/* ---------- 排行榜 ---------- */
+function ranked(){
+  return players.slice().sort((a,b) =>
+    (b.score || 0) - (a.score || 0) ||
+    ((reached[a.id] || {}).at || 0) - ((reached[b.id] || {}).at || 0) ||
+    String(a.name).localeCompare(String(b.name), 'zh-Hant'));
+}
+function renderBoard(){
+  view = 'board';
+  $('app').innerHTML = topBar(`
+    <div class="stat"><span>房間</span><b class="pinMini">${esc(pin)}</b></div>
+    <div class="stat"><span>人數</span><b id="sN">0</b></div>
+    <div class="stat"><span>完成</span><b id="sD">0</b></div>
+    <div class="stat"><span>時間</span><b id="sT">00:00</b></div>
+    <button class="btn ghost" type="button" id="showQr">讓更多人加入</button>
+    <button class="btn ghost" type="button" id="statsBtn">各題答對情況</button>
+    <button class="btn" type="button" id="endBtn">結束並頒獎</button>`) + `
+    <div class="boardHead" id="bh"><span>名次</span><span>工程師</span><div class="stopsHead">${STOPS.map((s, i) => `<span><em>${i + 1}</em><b>${s}</b></span>`).join('')}</div><span>零件</span><span style="text-align:right">分數</span></div>
+    <div class="rows" id="rows"></div>
+    <p class="legend">分數：每通過一關 +100，一次就答對的任務再 +100。同分時，先到的排前面。點兩下名字可以移出房間。</p>`;
+  bindTop();
+  $('endBtn').onclick = () => { $('endBtn').disabled = true; be.roomUpdate(pin, { status:'ended', endedAt:Date.now() }).catch(() => { $('endBtn').disabled = false; }); };
+  $('showQr').onclick = showQrOverlay;
+  $('statsBtn').onclick = showStats;
+  clearInterval(timer);
+  const tick = () => { const end = room && room.status === 'ended' && room.endedAt ? room.endedAt : Date.now(); const t = room && room.startedAt ? Math.max(0, Math.floor((end - room.startedAt) / 1000)) : 0; const el = $('sT'); if (el) el.textContent = String(Math.floor(t/60)).padStart(2,'0') + ':' + String(t%60).padStart(2,'0'); };
+  tick(); timer = setInterval(tick, 1000);
+  drawBoard();
+}
+function rowHTML(p, i){
+  const stop = Math.max(0, Math.min(STOPS.length, p.stop || 0));
+  const track = STOPS.map((_, k) => `<i class="${p.done ? 'on' : k < stop ? 'on' : k === stop ? 'now' : ''}"></i>`).join('');
+  const parts = PART_COLORS.map((c, k) => k < (p.parts || 0) ? `<span class="got" style="background:${c}"></span>` : '<span></span>').join('');
+  return `<div class="row" data-id="${esc(p.id)}"><div class="rk">${i + 1}</div>
+    <div class="nm" data-id="${esc(p.id)}">${esc(p.name)}${p.done ? '<span class="done">完成</span>' : ''}${p.cls ? `<small>${esc(p.cls)}</small>` : ''}</div>
+    <div class="track${p.done ? ' fin' : ''}">${track}</div><div class="parts">${parts}</div><div class="score">${p.score || 0}</div></div>`;
+}
+function drawBoard(){
+  const box = $('rows'); if (!box) return;
+  const list = ranked();
+  $('sN').textContent = list.length;
+  $('sD').textContent = list.filter(p => p.done).length;
+  // FLIP：記住舊位置
+  const before = {}; box.querySelectorAll('.row').forEach(r => { before[r.dataset.id] = r.getBoundingClientRect().top; });
+  box.className = 'rows' + (list.length > 16 ? ' two compact' : list.length > 10 ? ' compact' : '');
+  $('bh').className = 'boardHead' + (list.length > 16 ? ' two' : '');
+  if (list.length > 16) box.style.gridTemplateRows = `repeat(${Math.ceil(list.length / 2)}, auto)`; else box.style.gridTemplateRows = '';
+  box.innerHTML = list.length ? list.map(rowHTML).join('') : '<div class="empty">還沒有學生加入</div>';
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches){
+    box.querySelectorAll('.row').forEach(r => {
+      const old = before[r.dataset.id]; if (old == null) return;
+      const dy = old - r.getBoundingClientRect().top; if (!dy) return;
+      r.animate([{ transform:`translateY(${dy}px)` }, { transform:'translateY(0)' }], { duration:600, easing:'cubic-bezier(.2,.8,.2,1)' });
+    });
+  }
+  box.querySelectorAll('.nm').forEach(n => n.onclick = () => { const p = players.find(x => x.id === n.dataset.id); if (p) askRemove(n, p.id, p.name); });
+}
+function showQrOverlay(){
+  const ov = $('ov');
+  ov.innerHTML = `<div class="qrCard"><div class="pinBox" style="text-align:center"><div class="lab" style="color:#5a6286">房間代碼</div><div class="pin" style="font-size:72px">${esc(pin)}</div></div><div class="qr" id="qr2"></div><div class="u">${esc(studentUrl(pin).replace(/^https?:\/\//, ''))}</div><button class="btn" type="button" id="closeQr">關閉</button></div>`;
+  ov.hidden = false;
+  if (window.QRCode) new QRCode($('qr2'), { text:studentUrl(pin), width:300, height:300, correctLevel:QRCode.CorrectLevel.M });
+  $('closeQr').onclick = () => { ov.hidden = true; ov.innerHTML = ''; };
+}
+
+/* ---------- 頒獎台 ---------- */
+function renderPodium(){
+  view = 'podium'; clearInterval(timer); frozen = players.length ? ranked() : null;
+  $('app').innerHTML = topBar(`<button class="btn ghost" type="button" id="backBoard">看完整排行</button><button class="btn ghost" type="button" id="statsBtn2">各題答對情況</button><button class="btn ghost" type="button" id="csvBtn">下載成績（Excel）</button><button class="btn ghost" type="button" id="again">開新的一場</button><button class="btn danger" type="button" id="wipe">刪除這場的資料</button>`) + `
+    <div style="text-align:center;font-family:var(--f-display);font-weight:900;font-size:clamp(30px,4vw,54px);letter-spacing:.08em">晶片工程師頒獎台</div>
+    <div class="podium" id="podium"></div><div class="rest" id="rest"></div>`;
+  bindTop();
+  $('backBoard').onclick = () => { frozen = null; renderBoard(); };
+  $('again').onclick = () => { store.del(HKEY); stopWatch(); renderHome(); };
+  $('statsBtn2').onclick = showStats;
+  $('csvBtn').onclick = () => downloadXlsx($('csvBtn'));
+  $('wipe').onclick = () => {
+    const b = $('wipe');
+    if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = '確定刪除？刪了就找不回來，記得先下載成績'; setTimeout(() => { if (b.isConnected){ b.dataset.armed = ''; b.textContent = '刪除這場的資料'; } }, 5000); return; }
+    closeRoom(true);
+  };
+  drawPodium(true);
+}
+function drawPodium(animate){
+  const box = $('podium'); if (!box) return;
+  if (!frozen || !frozen.length) frozen = players.length ? ranked() : null;
+  const list = frozen || [], top = list.slice(0, 3);
+  const order = [1, 0, 2], H = ['26vh', '36vh', '18vh'];
+  box.innerHTML = order.map(i => top[i] ? `<div class="col p${i + 1}" data-i="${i}"><div class="who">${esc(top[i].name)}</div><div class="pts">${top[i].score || 0} 分</div><div class="bar">${i + 1}</div></div>` : '').join('');
+  $('rest').innerHTML = list.slice(3).map((p, k) => `<span><b>${k + 4}</b>${esc(p.name)}</span>`).join('');
+  const cols = [...box.querySelectorAll('.col')];
+  const show = col => { col.querySelector('.bar').style.height = H[+col.dataset.i === 0 ? 1 : +col.dataset.i === 1 ? 0 : 2]; col.classList.add('show'); };
+  if (!animate){ cols.forEach(show); return; }
+  const seq = [2, 1, 0];
+  seq.forEach((rank, n) => setTimeout(() => { const c = cols.find(x => +x.dataset.i === rank); if (c) show(c); if (rank === 0) confetti(); }, 500 + n * 1100));
+}
+function confetti(){
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv = $('confetti'); cv.hidden = false; cv.width = innerWidth; cv.height = innerHeight;
+  const g = cv.getContext('2d'), cols = ['#ffd166','#2fd0bd','#e48fcb','#8fa2ff','#f2b733','#ffffff'];
+  const ps = Array.from({ length:180 }, () => ({ x:Math.random() * cv.width, y:-20 - Math.random() * cv.height * .5, vx:(Math.random() - .5) * 3, vy:2 + Math.random() * 4, r:Math.random() * Math.PI, w:6 + Math.random() * 8, c:cols[Math.floor(Math.random() * cols.length)] }));
+  const t0 = performance.now();
+  const step = t => {
+    g.clearRect(0, 0, cv.width, cv.height);
+    ps.forEach(p => { p.x += p.vx; p.y += p.vy; p.r += .1; g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c; g.fillRect(-p.w/2, -p.w/4, p.w, p.w/2); g.restore(); });
+    if (t - t0 < 4500) requestAnimationFrame(step); else { g.clearRect(0, 0, cv.width, cv.height); cv.hidden = true; }
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- 各題答對情況 ---------- */
+function showStats(){
+  statsOpen = true;
+  const ov = $('ov');
+  ov.innerHTML = `<div class="statCard" role="dialog" aria-modal="true" aria-label="各題答對情況">
+    <div class="statHead"><div><h2>各題答對情況</h2><p>「第一次就答對」是學生第一次作答、還沒看到任何提示或回饋時就答對的人數。</p></div>
+      <div class="tools"><button class="btn" type="button" id="csvBtn2">下載成績（Excel）</button><button class="btn ghost" type="button" id="closeStats">關閉</button></div></div>
+    <div id="statsBody"></div></div>`;
+  ov.hidden = false;
+  $('closeStats').onclick = () => { statsOpen = false; ov.hidden = true; ov.innerHTML = ''; };
+  $('csvBtn2').onclick = () => downloadXlsx($('csvBtn2'));
+  drawStats();
+}
+function drawStats(){
+  const box = $('statsBody'); if (!box) return;
+  const list = Object.values(answers);
+  if (!list.length){
+    box.innerHTML = `<p class="note" style="padding:20px 0">還沒有收到作答紀錄。學生答完第 1 題後就會出現。<br>如果學生已經在作答卻一直沒有資料，請確認 Firebase 的安全規則已經更新。</p>`;
+    return;
+  }
+  box.innerHTML = `<table class="statTable"><thead><tr><th>題目</th><th class="num">第一次就答對</th><th>比例</th><th>最常選的錯誤答案</th></tr></thead><tbody>` +
+    QMETA.map(m => {
+      const got = list.filter(a => a.q && a.q[m.id]);
+      const n = got.length, ok = got.filter(a => a.q[m.id].ok).length;
+      const pct = n ? Math.round(ok / n * 100) : 0;
+      const wrong = {};
+      if (!m.noBreakdown) got.filter(a => !a.q[m.id].ok).forEach(a => { const k = ansText(m.id, a.q[m.id]); wrong[k] = (wrong[k] || 0) + 1; });
+      const top = Object.entries(wrong).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, c]) => `${esc(k)} ×${c}`).join('、');
+      return `<tr><td>${esc(m.label)}${m.note ? `<small>（${esc(m.note)}）</small>` : ''}</td>
+        <td class="num"><b>${ok}</b> / ${n} 人</td>
+        <td><div class="pbar"><i style="width:${pct}%"></i></div><span class="pct">${n ? pct + '%' : '還沒有人作答'}</span></td>
+        <td class="wrong">${top || (n ? (m.noBreakdown ? '' : '沒有人答錯') : '')}</td></tr>`;
+    }).join('') + `</tbody></table><p class="legend" style="margin-top:12px">已收到 ${list.length} 位學生的作答紀錄。被移出的學生不列入。</p>`;
+}
+/* ---------- 下載成績（Excel：說明／各題統計／學生總表／作答明細） ---------- */
+// 題目原文、選項全文、正確答案（與學生端的題目一致）
+const QBANK = {
+  q1:  { name:'Q1 基爾比', text:'電路板上每個零件都包著自己的外殼，外殼加起來比核心還佔空間，要怎麼讓電腦變小？（給基爾比一個建議）',
+         opts:{ '同一塊半導體':'零件的核心都是半導體做的，把它們全部做在同一塊半導體上，再一起包起來', '不導電材料隔開':'在導線之間放不導電材料，把導線隔開', '搬到大房間':'把電腦搬到更大的房間', '便宜零件':'換便宜一點的零件' }, ok:'同一塊半導體' },
+  q2:  { name:'Q2 繞路的缺點', text:'導線繞路就能接好，為什麼科學家還要想別的辦法？',
+         opts:{ '電路變大':'導線繞路會變長，電路要佔更大的地方，電腦就縮不小', '不導電':'繞路的導線會變得不導電', '電晶體壞':'導線繞路會讓電晶體壞掉', '沒有壞處':'繞路沒有壞處，科學家只是想試試新方法' }, ok:'電路變大' },
+  q3:  { name:'Q3 諾伊斯', text:'板子縮成 5×5 以後，兩條導線怎麼接都會碰在一起，要怎麼做才能接好？（給諾伊斯一個辦法）',
+         opts:{ '板子加大':'把板子加大成 7×7，讓導線繞路', '接在一起':'讓兩條導線直接接在一起', '不導電材料蓋一層':'在導線上面鋪一層不導電材料，再往上蓋一層導線', '導線變細':'把導線做得更細，就能從旁邊擠過去' }, ok:'不導電材料蓋一層' },
+  q4a: { name:'Q4 預測層數', text:'三條導線（A–D、B–E、C–F）每兩條都會交叉，最少要蓋幾層導線才接得起來？（先預測，再實際接）',
+         opts:{ '1 層':'1 層', '2 層':'2 層', '3 層':'3 層', '4 層':'4 層' }, ok:'3 層' },
+  q4b: { name:'Q4 接好交叉導線', text:'實際把三條兩兩交叉的導線接好（完成就算答對，卡太久按跳過算未答對）',
+         opts:{ '完成':'完成', '跳過':'跳過' }, ok:'完成' },
+  k33: { name:'Q5 三井三屋', text:'三間屋子（A、B、C）都要各接到三口井（1、2、3），一共 9 條導線而且不能交叉，要自己規劃分層（完成就算答對，卡太久按跳過算未答對）',
+         opts:{ '完成':'完成', '跳過':'跳過' }, ok:'完成' },
+  q5:  { name:'Q6 十幾層導線', text:'一顆小小的晶片裡有數百億個電晶體，導線大約蓋了十幾層，為什麼要蓋這麼多層？',
+         opts:{ '導線會交叉':'電晶體很多、晶片又小，導線放在同一層一定會交叉碰在一起，只好往上分很多層', '比較堅固':'層數越多，晶片越堅固，摔到也不會壞', '不同顏色的電':'每一層導線負責傳送不同顏色的電', '比較好夾':'晶片做厚一點，工廠的機器比較好夾' }, ok:'導線會交叉' },
+  q6:  { name:'Q7 組裝晶片', text:'用收集到的零件，由下往上組裝一顆有兩層導線的晶片（第一次就排對）',
+         okText:'由下往上：矽晶圓 → 第 1 層導線 → 不導電材料 → 第 2 層導線。第 1 層導線下面多鋪一層不導電材料也對；保護外殼可以不放，或放在最上面（把整顆晶片包起來）。' },
+};
+const QIDS = ['q1', 'q2', 'q3', 'q4a', 'q4b', 'k33', 'q5', 'q6'];
+const okText = id => QBANK[id].okText || QBANK[id].opts[QBANK[id].ok];
+const ansText = (id, a) => {
+  if (!a) return '（未作答）';
+  if (a.a === '跳過') return '（跳過）';
+  return (QBANK[id].opts && QBANK[id].opts[a.a]) || a.a;
+};
+function loadXLSX(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => res(window.XLSX); s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+async function downloadXlsx(btn){
+  const label = btn ? btn.textContent : '';
+  if (btn){ btn.disabled = true; btn.textContent = '準備中…'; }
+  try {
+    const X = await loadXLSX();
+    const d = new Date(), pad = n => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    // 名單：排行榜上的學生，再補上只有作答紀錄的人
+    const rk = ranked();
+    const people = rk.map((p, i) => ({ id:p.id, rank:i + 1, name:p.name, cls:p.cls || '', score:p.score || 0, done:!!p.done }));
+    Object.values(answers).forEach(a => { if (!people.some(p => p.id === a.id)) people.push({ id:a.id, rank:'', name:a.name, cls:'', score:'', done:false }); });
+    const qOf = (pid, id) => answers[pid] && answers[pid].q ? answers[pid].q[id] : null;
+
+    // 1. 說明
+    const intro = [
+      ['導線走線大師（晶片系列 EP4 時空任務）全班即時競賽成績'],
+      [],
+      ['房間代碼', String(pin)],
+      ['匯出時間', stamp],
+      ['學生人數', people.length],
+      [],
+      ['名詞', '說明'],
+      ['第一次就答對', '學生第一次作答、還沒看到任何提示或回饋時就選對。答錯後可以重選，但成績只記第一次。'],
+      ['分數', '每通過一關 +100，第一次就答對的任務再 +100，滿分 1600。'],
+      ['完成全部', '學生是否走到最後的工程師證畫面。老師按「結束並頒獎」之後，還沒走完的學生的作答不會再記錄。'],
+      ['未作答', '學生還沒走到那一題（例如老師提早結束）。'],
+      [],
+      ['工作表', '內容'],
+      ['各題統計', '每一題的作答人數、第一次就答對人數與答對率；下方有每個選項被選了幾次。'],
+      ['學生總表', '一位學生一列，每一題寫「是／否／未作答」。'],
+      ['作答明細', '一位學生的一題一列（長表格），包含題目、學生第一次的答案、正確答案，方便篩選或交給 AI 分析。'],
+      [],
+      ['題號', '題目', '正確答案'],
+    ].concat(QIDS.map(id => [QBANK[id].name, QBANK[id].text, okText(id)]));
+    const wsIntro = X.utils.aoa_to_sheet(intro);
+    wsIntro['!cols'] = [{ wch:16 }, { wch:70 }, { wch:60 }];
+
+    // 2. 各題統計
+    const stat = [['題號', '題目', '正確答案', '作答人數', '第一次就答對人數', '第一次答對率', '最常選的錯誤答案']];
+    QIDS.forEach(id => {
+      const got = people.filter(p => qOf(p.id, id));
+      const ok = got.filter(p => qOf(p.id, id).ok).length;
+      const wrong = {};
+      if (id !== 'q6') got.filter(p => !qOf(p.id, id).ok).forEach(p => { const t = ansText(id, qOf(p.id, id)); wrong[t] = (wrong[t] || 0) + 1; });
+      const top = Object.entries(wrong).sort((x, y) => y[1] - x[1])[0];
+      stat.push([QBANK[id].name, QBANK[id].text, okText(id), got.length, ok, got.length ? ok / got.length : '', top ? `${top[0]}（${top[1]} 人）` : '']);
+    });
+    stat.push([], ['選項分布（每個選項第一次被選的人數）'], ['題號', '選項', '是否為正確答案', '選這個的人數']);
+    QIDS.filter(id => QBANK[id].opts).forEach(id => {
+      Object.entries(QBANK[id].opts).forEach(([k, t]) => {
+        const n = people.filter(p => { const a = qOf(p.id, id); return a && a.a === k; }).length;
+        stat.push([QBANK[id].name, t, k === QBANK[id].ok ? '是' : '否', n]);
+      });
+    });
+    const wsStat = X.utils.aoa_to_sheet(stat);
+    for (let r = 1; r <= QIDS.length; r++){ const c = wsStat[X.utils.encode_cell({ r, c:5 })]; if (c && typeof c.v === 'number') c.z = '0%'; }
+    wsStat['!cols'] = [{ wch:18 }, { wch:60 }, { wch:50 }, { wch:10 }, { wch:16 }, { wch:13 }, { wch:40 }];
+
+    // 3. 學生總表
+    const sumHead = ['名次', '姓名', '班級', '分數', '完成全部', '第一次就答對題數', '已作答題數'].concat(QIDS.map(id => QBANK[id].name + ' 第一次就答對'));
+    const sumRows = people.map(p => {
+      const got = QIDS.filter(id => qOf(p.id, id));
+      return [p.rank, p.name, p.cls, p.score, p.done ? '是' : '否', got.filter(id => qOf(p.id, id).ok).length, got.length]
+        .concat(QIDS.map(id => { const a = qOf(p.id, id); return a ? (a.ok ? '是' : '否') : '未作答'; }));
+    });
+    const wsSum = X.utils.aoa_to_sheet([sumHead].concat(sumRows));
+    wsSum['!cols'] = [{ wch:6 }, { wch:14 }, { wch:14 }, { wch:8 }, { wch:10 }, { wch:16 }, { wch:12 }].concat(QIDS.map(() => ({ wch:22 })));
+    if (sumRows.length) wsSum['!autofilter'] = { ref: X.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:sumRows.length, c:sumHead.length - 1 } }) };
+
+    // 4. 作答明細（長表格）
+    const detHead = ['房間代碼', '姓名', '班級', '名次', '題號', '題目', '學生第一次的答案', '正確答案', '第一次就答對'];
+    const detRows = [];
+    people.forEach(p => QIDS.forEach(id => {
+      const a = qOf(p.id, id);
+      detRows.push([String(pin), p.name, p.cls, p.rank, QBANK[id].name, QBANK[id].text, ansText(id, a), okText(id), a ? (a.ok ? '是' : '否') : '未作答']);
+    }));
+    const wsDet = X.utils.aoa_to_sheet([detHead].concat(detRows));
+    wsDet['!cols'] = [{ wch:9 }, { wch:14 }, { wch:14 }, { wch:6 }, { wch:16 }, { wch:50 }, { wch:50 }, { wch:50 }, { wch:12 }];
+    if (detRows.length) wsDet['!autofilter'] = { ref: X.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:detRows.length, c:detHead.length - 1 } }) };
+
+    const wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, wsIntro, '說明');
+    X.utils.book_append_sheet(wb, wsStat, '各題統計');
+    X.utils.book_append_sheet(wb, wsSum, '學生總表');
+    X.utils.book_append_sheet(wb, wsDet, '作答明細');
+    const out = X.write(wb, { bookType:'xlsx', type:'array' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = `導線走線大師_成績_房間${pin}_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  } catch(e){
+    if (btn) btn.textContent = '下載失敗，請檢查網路後再按一次';
+    return;
+  } finally {
+    if (btn && btn.textContent === '準備中…'){ btn.disabled = false; btn.textContent = label; }
+    else if (btn) btn.disabled = false;
+  }
+}
+
+/* ---------- 關閉房間 ---------- */
+async function closeRoom(wipe, msg){
+  const p = pin;
+  stopWatch(); store.del(HKEY);
+  try {
+    if (wipe){
+      const ids = new Set(players.map(pl => pl.id).concat(Object.keys(answers)));
+      for (const id of ids){ await be.playerDelete(p, id).catch(() => {}); await be.answerDelete(p, id).catch(() => {}); }
+      await be.roomDelete(p);
+    }
+    else await be.roomUpdate(p, { status:'ended', endedAt:Date.now() });
+  } catch(e){}
+  room = null; players = []; pin = null;
+  renderHome(msg || (wipe ? '這一場的資料已經刪除。' : '已取消這一場。'));
+}
+
+renderHome();
+})();
+</script>
